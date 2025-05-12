@@ -6,6 +6,7 @@ A command-line utility to read and display data from cloud storage (Google Cloud
 
 - **Cloud Storage Support**: Read files from GCS (`gcs://`) and S3 (`s3://`)
 - **Multiple File Formats**: Support for CSV, JSON, and Parquet
+- **CSV Delimiter Support**: Handle tab-delimited and other custom-delimited files
 - **Intelligent Directory Handling**: Automatically find and read data from directories
 - **Multi-File Reading**: Combine data from multiple small files (up to configurable size)
 - **Streaming**: Optimize to avoid downloading entire files when possible
@@ -36,6 +37,9 @@ pip install cloudcat[all]
 # Basic file reading
 cloudcat --path gcs://bucket/file.csv
 
+# Reading tab-delimited files
+cloudcat --path s3://bucket/data.csv --delimiter "\t"
+
 # Reading from a directory (automatically finds data files)
 cloudcat --path s3://bucket/spark-output/
 
@@ -56,6 +60,7 @@ cloudcat --path gcs://bucket/logs/ --multi-file-mode all
 | `--no-count` | | Disable record count display (counts shown by default) |
 | `--multi-file-mode` | `-m` | How to handle directories: `auto` (default), `first`, `all` |
 | `--max-size-mb` | | Maximum size in MB to read for multi-file mode (default: 25) |
+| `--delimiter` | `-d` | Delimiter to use for CSV files (use `\t` for tab) |
 
 ## Directory Handling
 
@@ -70,6 +75,21 @@ When reading directories, CloudCat automatically:
 - Ignores metadata files like `_SUCCESS`, `.crc`, etc.
 - Prioritizes files matching the specified format
 - Provides a summary of selected files
+
+## CSV Delimiter Support
+
+CloudCat can handle various CSV delimiter types:
+
+```bash
+# Tab-delimited files
+cloudcat --path gcs://bucket/data.tsv --delimiter "\t"
+
+# Pipe-delimited files
+cloudcat --path s3://data/extract.csv --delimiter "|"
+
+# Semicolon-delimited files (common in Europe)
+cloudcat --path gcs://reports/data.csv --delimiter ";"
+```
 
 ## Output Formats
 
@@ -88,6 +108,16 @@ CloudCat uses the default authentication mechanisms for each cloud provider:
 Make sure you have the appropriate credentials configured before using the tool.
 
 ## Example Use Cases
+
+### Reading Tab-Delimited Files
+
+```bash
+# Read a tab-delimited file and show as table
+cloudcat --path gcs://analytics/export.tsv --delimiter "\t"
+
+# Convert tab-delimited to JSON
+cloudcat --path s3://exports/data.tsv --delimiter "\t" --output-format jsonp
+```
 
 ### Exploring a Spark Output Directory
 
@@ -114,6 +144,9 @@ cloudcat --path gcs://analytics/events.json --columns user_id,event_type,timesta
 ```bash
 # Export data as CSV
 cloudcat --path s3://exports/data.parquet --num-rows 1000 --output-format csv > exported_data.csv
+
+# Convert tab-delimited to comma-delimited
+cloudcat --path gcs://exports/data.tsv --delimiter "\t" --output-format csv > converted.csv
 ```
 
 ### Handling Small Files
@@ -122,14 +155,6 @@ cloudcat --path s3://exports/data.parquet --num-rows 1000 --output-format csv > 
 # Read and combine data from a directory with many small files
 cloudcat --path gcs://logs/daily/ --multi-file-mode all --max-size-mb 100
 ```
-
-## Example Outputs
-
-### Table Format (default)
-![Table Format Example](https://example.com/table_example.png)
-
-### Pretty JSON (jsonp)
-![Pretty JSON Example](https://example.com/jsonp_example.png)
 
 ## License
 

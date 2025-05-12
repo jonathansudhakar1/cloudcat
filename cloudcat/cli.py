@@ -275,13 +275,16 @@ def get_s3_stream(bucket_name, object_name):
     return response['Body']
 
 
-def read_csv_data(stream, num_rows, columns=None):
+def read_csv_data(stream, num_rows, columns=None, delimiter=None):
     """Read CSV data from a stream."""
     # First read the data without column filtering to get full schema
-    if num_rows > 0:
-        full_df = pd.read_csv(stream, nrows=num_rows)
-    else:
-        full_df = pd.read_csv(stream)
+    pd_args = {'nrows': num_rows} if num_rows > 0 else {}
+    
+    # Add delimiter if specified
+    if delimiter:
+        pd_args['delimiter'] = delimiter
+    
+    full_df = pd.read_csv(stream, **pd_args)
     
     # Store the full schema for later use
     full_schema = full_df.dtypes
@@ -384,8 +387,19 @@ def read_parquet_data(stream, num_rows, columns=None):
             df = table.to_pandas()
         
         # Get the full schema as a pandas Series for consistency with other formats
-        # First, read a small amount of data to get pandas dtypes
-        full_df = pq.read_table(temp_path, nrows=1).to_pandas()
+        # First, read a small sample to get pandas dtypes - use read_row_group to limit rows
+        # FIXED: PyArrow doesn't have nrows parameter for read_table
+        if parquet_file.num_row_groups > 0:
+            # Read just first row group
+            sample_table = parquet_file.read_row_group(0)
+            if sample_table.num_rows > 1:
+                # Slice to just the first row if needed
+                sample_table = sample_table.slice(0, 1)
+            full_df = sample_table.to_pandas()
+        else:
+            # If no row groups, create empty DataFrame with correct schema
+            full_df = df.iloc[0:0] if not df.empty else pd.DataFrame()
+        
         full_schema = full_df.dtypes
         
         return df, full_schema
@@ -400,7 +414,7 @@ def read_parquet_data(stream, num_rows, columns=None):
             pass
 
 
-def read_data_from_multiple_files(service, bucket, file_list, input_format, num_rows, columns=None):
+def read_data_from_multiple_files(service, bucket, file_list, input_format, num_rows, columns=None, delimiter=None):
     """Read data from multiple files and concatenate the results."""
     dfs = []
     schemas = []
@@ -424,7 +438,7 @@ def read_data_from_multiple_files(service, bucket, file_list, input_format, num_
         
         # Read the file
         if input_format == 'csv':
-            df, schema = read_csv_data(stream, remaining_rows if remaining_rows > 0 else 0, columns)
+            df, schema = read_csv_data(stream, remaining_rows if remaining_rows > 0 else 0, columns, delimiter)
         elif input_format == 'json':
             df, schema = read_json_data(stream, remaining_rows if remaining_rows > 0 else 0, columns)
         elif input_format == 'parquet':
@@ -477,7 +491,7 @@ def read_data_from_multiple_files(service, bucket, file_list, input_format, num_
     return result_df, full_schema, total_rows
 
 
-def read_data(service, bucket, object_path, input_format, num_rows, columns=None):
+def read_data(service, bucket, object_path, input_format, num_rows, columns=None, delimiter=None):
     """Read data from cloud storage."""
     # Get appropriate stream based on service
     if service == 'gcs':
@@ -489,7 +503,7 @@ def read_data(service, bucket, object_path, input_format, num_rows, columns=None
     
     # Read based on format
     if input_format == 'csv':
-        return read_csv_data(stream, num_rows, columns)
+        return read_csv_data(stream, num_rows, columns, delimiter)
     elif input_format == 'json':
         return read_json_data(stream, num_rows, columns)
     elif input_format == 'parquet':
@@ -498,7 +512,7 @@ def read_data(service, bucket, object_path, input_format, num_rows, columns=None
         raise ValueError(f"Unsupported format: {input_format}")
 
 
-def get_record_count(service, bucket, object_path, input_format):
+def get_record_count(service, bucket, object_path, input_format, delimiter=None):
     """Get record count from a file."""
     if input_format == 'parquet' and HAS_PARQUET:
         # For Parquet, we can get count from metadata
@@ -538,7 +552,13 @@ def get_record_count(service, bucket, object_path, input_format):
         
         if input_format == 'csv':
             chunk_count = 0
-            for chunk in pd.read_csv(stream, chunksize=10000):
+            
+            # Add delimiter if specified
+            read_args = {'chunksize': 10000}
+            if delimiter:
+                read_args['delimiter'] = delimiter
+                
+            for chunk in pd.read_csv(stream, **read_args):
                 chunk_count += len(chunk)
             return chunk_count
         elif input_format == 'json':
@@ -621,7 +641,9 @@ def format_table_with_colored_header(df):
               help='How to handle directories with multiple files (default: auto)')
 @click.option('--max-size-mb', default=25, type=int, 
               help='Maximum size in MB to read when reading multiple files (default: 25)')
-def main(path, output_format, input_format, columns, num_rows, schema, no_count, multi_file_mode, max_size_mb):
+@click.option('--delimiter', '-d', help='Delimiter to use for CSV files (use "\\t" for tab)')
+def main(path, output_format, input_format, columns, num_rows, schema, no_count, 
+         multi_file_mode, max_size_mb, delimiter):
     """Display data from files in Google Cloud Storage or AWS S3.
     
     Example usage:
@@ -649,8 +671,16 @@ def main(path, output_format, input_format, columns, num_rows, schema, no_count,
     \b
     # Read from multiple files in a directory (up to 25MB)
     cloudcat --path s3://my-bucket/daily-data/ --multi-file-mode all --max-size-mb 25
+    
+    \b
+    # Read a tab-delimited file
+    cloudcat --path gcs://my-bucket/data.csv --delimiter "\\t"
     """
     try:
+        # Handle special characters in delimiter
+        if delimiter == "\\t":
+            delimiter = "\t"
+        
         # Parse the path
         service, bucket, object_path = parse_cloud_path(path)
         
@@ -672,7 +702,7 @@ def main(path, output_format, input_format, columns, num_rows, schema, no_count,
                     click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
                 
                 # Read the data from the single file
-                df, full_schema = read_data(service, bucket, object_path, input_format, num_rows, columns)
+                df, full_schema = read_data(service, bucket, object_path, input_format, num_rows, columns, delimiter)
                 total_record_count = None  # Will be computed later if needed
             else:
                 # Read from multiple files
@@ -689,7 +719,7 @@ def main(path, output_format, input_format, columns, num_rows, schema, no_count,
                 
                 # Read data from multiple files
                 df, full_schema, total_record_count = read_data_from_multiple_files(
-                    service, bucket, file_list, input_format, num_rows, columns
+                    service, bucket, file_list, input_format, num_rows, columns, delimiter
                 )
                 
                 # Update object_path for display/logging purposes
@@ -702,7 +732,7 @@ def main(path, output_format, input_format, columns, num_rows, schema, no_count,
                 click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
             
             # Read the data
-            df, full_schema = read_data(service, bucket, object_path, input_format, num_rows, columns)
+            df, full_schema = read_data(service, bucket, object_path, input_format, num_rows, columns, delimiter)
             total_record_count = None  # Will be computed later if needed
         
         # Display schema if requested
@@ -718,7 +748,7 @@ def main(path, output_format, input_format, columns, num_rows, schema, no_count,
             if not no_count:
                 try:
                     if total_record_count is None:
-                        total_record_count = get_record_count(service, bucket, object_path, input_format)
+                        total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
                     click.echo(Fore.CYAN + f"Total records: {total_record_count}" + Style.RESET_ALL)
                 except Exception as e:
                     click.echo(Fore.YELLOW + f"Could not count records: {str(e)}" + Style.RESET_ALL)
@@ -743,7 +773,7 @@ def main(path, output_format, input_format, columns, num_rows, schema, no_count,
         if not no_count:
             try:
                 if total_record_count is None:
-                    total_record_count = get_record_count(service, bucket, object_path, input_format)
+                    total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
                 click.echo(Fore.CYAN + f"\nTotal records: {total_record_count}" + Style.RESET_ALL)
             except Exception as e:
                 click.echo(Fore.YELLOW + f"\nCould not count records: {str(e)}" + Style.RESET_ALL)
