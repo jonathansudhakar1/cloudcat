@@ -270,16 +270,16 @@ def get_record_count(service, bucket, object_path, input_format):
 
 
 @click.command()
-@click.option('--path', required=True, help='Path to the file (gcs://... or s3://...)')
-@click.option('--output-format', type=click.Choice(['json', 'csv', 'table']), default='table', 
+@click.option('--path', '-p', required=True, help='Path to the file (gcs://... or s3://...)')
+@click.option('--output-format', '-o', type=click.Choice(['json', 'csv', 'table']), default='table', 
               help='Output format (default: table)')
-@click.option('--input-format', type=click.Choice(['json', 'csv', 'parquet']), 
+@click.option('--input-format', '-i', type=click.Choice(['json', 'csv', 'parquet']), 
               help='Input format (default: inferred from path)')
-@click.option('--columns', help='Comma-separated list of columns to display (default: all)')
+@click.option('--columns', '-c', help='Comma-separated list of columns to display (default: all)')
 @click.option('--num-rows', '-n', default=10, type=int, help='Number of rows to display (default: 10)')
-@click.option('--schema', type=click.Choice(['show', 'dont_show', 'schema_only']), default='show',
+@click.option('--schema', '-s', type=click.Choice(['show', 'dont_show', 'schema_only']), default='show',
               help='Schema display option (default: show)')
-@click.option('--count', is_flag=True, help='Show record count at the end')
+@click.option('--count', '-cn', is_flag=True, help='Show record count at the end')
 def main(path, output_format, input_format, columns, num_rows, schema, count):
     """Display data from files in Google Cloud Storage or AWS S3.
     
