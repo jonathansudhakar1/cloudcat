@@ -1,0 +1,76 @@
+
+name: Bump Version and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version-type:
+        description: 'Type of version increment (patch, minor, major)'
+        required: true
+        default: 'patch'
+      release-notes:
+        description: 'Release notes'
+        required: false
+        default: 'Bug fixes and improvements'
+
+jobs:
+  bump-and-release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.PAT_GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        pip install bump2version
+    
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Bump version
+      id: bump
+      run: |
+        # Get current version before bump
+        CURRENT_VERSION=$(grep -Po '__version__ = "\K[^"]+' cloudcat/__init__.py)
+        echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+        
+        # Bump version
+        bump2version ${{ github.event.inputs.version-type }}
+        
+        # Get new version after bump
+        NEW_VERSION=$(grep -Po '__version__ = "\K[^"]+' cloudcat/__init__.py)
+        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+    
+    - name: Push changes
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT_GITHUB_TOKEN }}
+      run: |
+        git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+        git push
+        git push --tags
+    
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT_GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.NEW_VERSION }}
+        release_name: Release v${{ env.NEW_VERSION }}
+        body: |
+          ## Changes in v${{ env.NEW_VERSION }}
+          
+          ${{ github.event.inputs.release-notes }}
+          
+          ---
+          Bumped from v${{ env.CURRENT_VERSION }}
+        draft: false
+        prerelease: false
