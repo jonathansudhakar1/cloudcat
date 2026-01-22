@@ -26,15 +26,17 @@
 
 ---
 
-**CloudCat** is a powerful command-line tool that lets you instantly preview and analyze data files stored in **Google Cloud Storage (GCS)** and **Amazon S3** — without downloading entire files. Think of it as `cat`, `head`, and `less` combined, but for cloud storage with built-in support for CSV, JSON, and Parquet formats.
+**CloudCat** is a powerful command-line tool that lets you instantly preview and analyze data files stored in **Google Cloud Storage (GCS)**, **Amazon S3**, and **Azure Blob Storage** — without downloading entire files. Think of it as `cat`, `head`, and `less` combined, but for cloud storage with built-in support for CSV, JSON, Parquet, Avro, ORC, and plain text formats.
 
 ## Why CloudCat?
 
 - **No Downloads Required** — Stream and preview data directly from cloud storage
-- **Format-Aware** — Intelligently handles CSV, JSON (including JSON Lines), and Parquet files
-- **Directory Smart** — Automatically discovers data files in Spark/Hive output directories
+- **Format-Aware** — Intelligently handles CSV, JSON, Parquet, Avro, ORC, and plain text files
+- **Directory Smart** — Automatically discovers data files in Spark/Hive/Kafka output directories
 - **Beautiful Output** — Colorized tables, pretty-printed JSON, and schema visualization
 - **Developer Friendly** — Simple CLI with sensible defaults and powerful options
+- **Compression Support** — Automatic decompression of gzip, zstd, lz4, snappy, and bz2 files
+- **SQL-like Filtering** — Filter rows with WHERE clauses (e.g., `--where "status=active"`)
 
 ## Installation
 
@@ -48,8 +50,20 @@ pip install cloudcat[gcs]
 # With AWS S3 support
 pip install cloudcat[s3]
 
+# With Azure Blob Storage support
+pip install cloudcat[azure]
+
 # With Parquet file support
 pip install cloudcat[parquet]
+
+# With Avro file support
+pip install cloudcat[avro]
+
+# With ORC file support (uses pyarrow)
+pip install cloudcat[orc]
+
+# With compression support (zstd, lz4, snappy)
+pip install cloudcat[compression]
 
 # Full installation (recommended)
 pip install cloudcat[all]
@@ -69,11 +83,29 @@ cloudcat -p gcs://my-bucket/data.csv
 # Preview a Parquet file from S3
 cloudcat -p s3://my-bucket/analytics/events.parquet
 
-# Preview JSON data with pretty formatting
-cloudcat -p gcs://my-bucket/logs.json -o jsonp
+# Preview JSON data from Azure with pretty formatting
+cloudcat -p az://my-container/logs.json -o jsonp
+
+# Read Avro files from Kafka
+cloudcat -p s3://my-bucket/kafka-export.avro
+
+# Read ORC files from Hive
+cloudcat -p gcs://my-bucket/hive-table.orc
+
+# Read log files as plain text
+cloudcat -p az://logs/app.log -i text
 
 # Read from a Spark output directory
 cloudcat -p s3://my-bucket/spark-output/ -i parquet
+
+# Read compressed files (auto-detected)
+cloudcat -p gcs://my-bucket/data.csv.gz
+
+# Filter rows with WHERE clause
+cloudcat -p s3://bucket/users.parquet --where "status=active"
+
+# Skip first 100 rows (pagination)
+cloudcat -p gcs://bucket/data.csv --offset 100 -n 10
 ```
 
 ## Features
@@ -84,17 +116,32 @@ cloudcat -p s3://my-bucket/spark-output/ -i parquet
 |----------|------------|--------|
 | Google Cloud Storage | `gcs://` or `gs://` | ✅ Supported |
 | Amazon S3 | `s3://` | ✅ Supported |
-| Azure Blob Storage | `az://` | 🔜 Coming Soon |
+| Azure Blob Storage | `az://` or `azure://` | ✅ Supported |
 
 ### File Format Support
 
-| Format | Read | Auto-Detect | Streaming |
-|--------|------|-------------|-----------|
-| CSV | ✅ | ✅ | ✅ |
-| JSON | ✅ | ✅ | ✅ |
-| JSON Lines | ✅ | ✅ | ✅ |
-| Parquet | ✅ | ✅ | ✅ |
-| TSV | ✅ | Via `--delimiter` | ✅ |
+| Format | Read | Auto-Detect | Streaming | Use Case |
+|--------|------|-------------|-----------|----------|
+| CSV | ✅ | ✅ | ✅ | General data files |
+| JSON | ✅ | ✅ | ✅ | API responses, configs |
+| JSON Lines | ✅ | ✅ | ✅ | Log files, streaming data |
+| Parquet | ✅ | ✅ | ✅ | Spark/analytics data |
+| Avro | ✅ | ✅ | ✅ | Kafka, data pipelines |
+| ORC | ✅ | ✅ | ✅ | Hive, Hadoop ecosystem |
+| Text | ✅ | ✅ | ✅ | Log files, plain text |
+| TSV | ✅ | Via `--delimiter` | ✅ | Tab-separated data |
+
+### Compression Support
+
+| Format | Extension | Built-in | Use Case |
+|--------|-----------|----------|----------|
+| Gzip | `.gz`, `.gzip` | ✅ | Most common, universal |
+| Bzip2 | `.bz2` | ✅ | High compression ratio |
+| Zstandard | `.zst`, `.zstd` | Optional | Fast, modern compression |
+| LZ4 | `.lz4` | Optional | Very fast decompression |
+| Snappy | `.snappy` | Optional | Hadoop ecosystem |
+
+CloudCat automatically detects and decompresses files based on extension (e.g., `data.csv.gz`, `logs.json.zst`).
 
 ### Output Formats
 
@@ -110,9 +157,12 @@ cloudcat -p s3://my-bucket/spark-output/ -i parquet
 - **Schema Inspection** — View column names and data types
 - **Column Selection** — Display only the columns you need
 - **Row Limiting** — Control how many rows to preview
+- **Row Offset** — Skip first N rows for pagination/sampling
+- **WHERE Filtering** — Filter rows with SQL-like conditions
 - **Record Counting** — Get total record counts (with Parquet metadata optimization)
 - **Multi-File Reading** — Combine data from multiple files in a directory
 - **Custom Delimiters** — Support for tab, pipe, semicolon, and other delimiters
+- **Auto Decompression** — Transparent handling of compressed files
 
 ## Examples
 
@@ -149,6 +199,43 @@ cloudcat -p s3://bucket/config.json
 
 # JSON Lines file (auto-detected)
 cloudcat -p gcs://bucket/events.jsonl
+```
+
+### Filtering and Pagination
+
+```bash
+# Filter rows with WHERE clause
+cloudcat -p s3://bucket/users.parquet --where "status=active"
+cloudcat -p gcs://bucket/events.json --where "age>30"
+cloudcat -p s3://bucket/logs.csv --where "level=ERROR"
+
+# String matching filters
+cloudcat -p gcs://bucket/data.csv --where "name contains john"
+cloudcat -p s3://bucket/emails.json --where "email endswith @gmail.com"
+cloudcat -p az://logs/app.log --where "message startswith ERROR"
+
+# Skip first N rows (pagination)
+cloudcat -p gcs://bucket/data.csv --offset 100 -n 10
+
+# Combine offset with filters
+cloudcat -p s3://bucket/users.parquet --where "active=true" --offset 50 -n 20
+```
+
+### Compressed Files
+
+```bash
+# Gzip compressed (built-in)
+cloudcat -p gcs://bucket/data.csv.gz
+cloudcat -p s3://bucket/logs.json.gz
+
+# Zstandard compressed (requires: pip install cloudcat[zstd])
+cloudcat -p gcs://bucket/events.parquet.zst
+
+# LZ4 compressed (requires: pip install cloudcat[lz4])
+cloudcat -p s3://bucket/data.csv.lz4
+
+# Bzip2 compressed (built-in)
+cloudcat -p az://container/archive.json.bz2
 ```
 
 ### Directory Operations
@@ -268,12 +355,13 @@ Usage: cloudcat [OPTIONS]
 
 Options:
   -p, --path TEXT              Cloud storage path (required)
-                               Format: gcs://bucket/path or s3://bucket/path
+                               Format: gcs://bucket/path, s3://bucket/path,
+                               or az://container/path
 
   -o, --output-format TEXT     Output format: table, json, jsonp, csv
                                [default: table]
 
-  -i, --input-format TEXT      Input format: csv, json, parquet
+  -i, --input-format TEXT      Input format: csv, json, parquet, avro, orc, text
                                [default: auto-detect from extension]
 
   -c, --columns TEXT           Comma-separated list of columns to display
@@ -281,6 +369,13 @@ Options:
 
   -n, --num-rows INTEGER       Number of rows to display (0 for all)
                                [default: 10]
+
+  --offset INTEGER             Skip first N rows
+                               [default: 0]
+
+  -w, --where TEXT             Filter rows with SQL-like conditions
+                               Examples: "status=active", "age>30",
+                               "name contains john", "email endswith @gmail.com"
 
   -s, --schema TEXT            Schema display: show, dont_show, schema_only
                                [default: show]
@@ -296,8 +391,30 @@ Options:
   -d, --delimiter TEXT         CSV delimiter (use \t for tab)
                                [default: comma]
 
+  --profile TEXT               AWS profile name (for S3 access)
+
+  --project TEXT               GCP project ID (for GCS access)
+
+  --credentials TEXT           Path to GCP service account JSON file
+
+  --account TEXT               Azure storage account name
+
   --help                       Show this message and exit
 ```
+
+### WHERE Clause Operators
+
+| Operator | Example | Description |
+|----------|---------|-------------|
+| `=` | `status=active` | Exact match |
+| `!=` | `type!=deleted` | Not equal |
+| `>` | `age>30` | Greater than |
+| `<` | `price<100` | Less than |
+| `>=` | `count>=10` | Greater than or equal |
+| `<=` | `score<=50` | Less than or equal |
+| `contains` | `name contains john` | Case-insensitive substring match |
+| `startswith` | `email startswith admin` | String prefix match |
+| `endswith` | `file endswith .csv` | String suffix match |
 
 ## Authentication
 
@@ -330,6 +447,22 @@ aws configure
 # Automatically detected
 ```
 
+### Azure Blob Storage
+
+CloudCat supports two authentication methods for Azure:
+
+```bash
+# Option 1: Connection string (simplest)
+export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
+
+# Option 2: Account URL with DefaultAzureCredential (for Azure AD auth)
+export AZURE_STORAGE_ACCOUNT_URL="https://youraccount.blob.core.windows.net"
+# Then use Azure CLI, managed identity, or other Azure AD credentials
+az login
+```
+
+**Path format:** `az://container-name/path/to/blob`
+
 ## Performance Tips
 
 1. **Use `--no-count`** for large files when you don't need the total record count
@@ -357,9 +490,42 @@ pip install cloudcat[s3]
 pip install cloudcat[parquet]
 ```
 
+**"azure-storage-blob package is required"**
+```bash
+pip install cloudcat[azure]
+```
+
+**"fastavro package is required"**
+```bash
+pip install cloudcat[avro]
+```
+
+**"pyarrow with ORC support is required"**
+```bash
+pip install cloudcat[orc]
+```
+
+**"zstandard package is required for .zst files"**
+```bash
+pip install cloudcat[zstd]
+# or for all compression formats:
+pip install cloudcat[compression]
+```
+
+**"lz4 package is required for .lz4 files"**
+```bash
+pip install cloudcat[lz4]
+```
+
+**"python-snappy package is required for .snappy files"**
+```bash
+pip install cloudcat[snappy]
+```
+
 **Authentication errors**
 - GCS: Run `gcloud auth application-default login`
 - S3: Run `aws configure` or check your credentials
+- Azure: Set `AZURE_STORAGE_CONNECTION_STRING` or `AZURE_STORAGE_ACCOUNT_URL` and run `az login`
 
 **"Could not infer format from path"**
 ```bash
@@ -395,13 +561,15 @@ pytest
 
 ## Roadmap
 
-- [ ] Azure Blob Storage support
-- [ ] Avro format support
-- [ ] ORC format support
+- [x] Azure Blob Storage support
+- [x] Avro format support
+- [x] ORC format support
+- [x] Plain text format support
+- [x] SQL-like filtering (`--where` clause)
+- [x] Compression support (gzip, zstd, lz4, snappy, bz2)
+- [x] Row offset/pagination (`--offset`)
 - [ ] Interactive mode with pagination
-- [ ] SQL-like filtering (`--where` clause)
 - [ ] Output to file with `--output-file`
-- [ ] Compression support (gzip, snappy, zstd)
 - [ ] Configuration file support
 
 ## Related Projects
@@ -409,6 +577,7 @@ pytest
 - [s3cmd](https://s3tools.org/s3cmd) — S3 command-line tool
 - [gsutil](https://cloud.google.com/storage/docs/gsutil) — Google Cloud Storage CLI
 - [aws-cli](https://aws.amazon.com/cli/) — AWS command-line interface
+- [azcopy](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) — Azure Storage data transfer tool
 - [duckdb](https://duckdb.org/) — In-process SQL OLAP database
 
 ## License

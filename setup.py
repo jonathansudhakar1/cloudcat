@@ -23,11 +23,24 @@ setup(
     extras_require={
         "gcs": ["google-cloud-storage>=2.0.0"],
         "s3": ["boto3>=1.18.0"],
+        "azure": ["azure-storage-blob>=12.0.0", "azure-identity>=1.0.0"],
         "parquet": ["pyarrow>=5.0.0"],
+        "avro": ["fastavro>=1.4.0"],
+        "orc": ["pyarrow>=5.0.0"],
+        "zstd": ["zstandard>=0.15.0"],
+        "lz4": ["lz4>=3.0.0"],
+        "snappy": ["python-snappy>=0.6.0"],
+        "compression": ["zstandard>=0.15.0", "lz4>=3.0.0", "python-snappy>=0.6.0"],
         "all": [
-            "google-cloud-storage>=2.0.0", 
-            "boto3>=1.18.0", 
-            "pyarrow>=5.0.0"
+            "google-cloud-storage>=2.0.0",
+            "boto3>=1.18.0",
+            "azure-storage-blob>=12.0.0",
+            "azure-identity>=1.0.0",
+            "pyarrow>=5.0.0",
+            "fastavro>=1.4.0",
+            "zstandard>=0.15.0",
+            "lz4>=3.0.0",
+            "python-snappy>=0.6.0"
         ],
     },
     entry_points={
@@ -37,10 +50,10 @@ setup(
     },
     author="Jonathan Sudhakar",
     author_email="jonathan@example.com",
-    description="Preview and analyze data files in Google Cloud Storage and AWS S3 from your terminal",
+    description="Preview and analyze data files in Google Cloud Storage, AWS S3, and Azure Blob Storage from your terminal",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    keywords="cloud, gcs, s3, cli, storage, data, parquet, csv, json, google-cloud, aws, data-engineering, etl, spark, bigquery",
+    keywords="cloud, gcs, s3, azure, cli, storage, data, parquet, csv, json, avro, orc, google-cloud, aws, azure-blob, data-engineering, etl, spark, bigquery, databricks, kafka, hive",
     project_urls={
         "Bug Reports": "https://github.com/jonathansudhakar1/cloudcat/issues",
         "Source": "https://github.com/jonathansudhakar1/cloudcat",
