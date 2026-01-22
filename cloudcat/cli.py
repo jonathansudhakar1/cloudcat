@@ -305,16 +305,71 @@ def read_csv_data(stream, num_rows, columns=None, delimiter=None):
 
 
 def read_json_data(stream, num_rows, columns=None):
-    """Read JSON data from a stream."""
-    # First read the data without column filtering to get full schema
-    if num_rows > 0:
-        full_df = pd.read_json(stream, lines=True, nrows=num_rows)
+    """Read JSON data from a stream. Supports both JSON Lines and regular JSON formats."""
+    # Read the raw content to determine the format
+    if hasattr(stream, 'read'):
+        content = stream.read()
+        if isinstance(content, bytes):
+            content = content.decode('utf-8')
     else:
-        full_df = pd.read_json(stream, lines=True)
-    
+        content = stream
+
+    # Try to detect if it's JSON Lines or regular JSON
+    content_stripped = content.strip()
+    is_json_lines = False
+
+    if content_stripped:
+        # JSON Lines starts with { or [ on each line, not a single array/object
+        # Check if first non-whitespace char is { and there are multiple lines with {
+        first_char = content_stripped[0]
+        if first_char == '{':
+            # Could be JSON Lines or a single JSON object
+            # Check if there are multiple lines starting with {
+            lines = [l.strip() for l in content_stripped.split('\n') if l.strip()]
+            if len(lines) > 1 and all(l.startswith('{') for l in lines[:min(5, len(lines))]):
+                is_json_lines = True
+        elif first_char == '[':
+            # Regular JSON array
+            is_json_lines = False
+
+    # Create a new stream from the content for pandas
+    content_stream = io.StringIO(content)
+
+    try:
+        if is_json_lines:
+            # JSON Lines format
+            if num_rows > 0:
+                full_df = pd.read_json(content_stream, lines=True, nrows=num_rows)
+            else:
+                full_df = pd.read_json(content_stream, lines=True)
+        else:
+            # Regular JSON (array or object)
+            parsed = json.loads(content)
+
+            # Handle different JSON structures
+            if isinstance(parsed, list):
+                # JSON array - convert to dataframe
+                full_df = pd.DataFrame(parsed)
+            elif isinstance(parsed, dict):
+                # Single JSON object - treat as single row
+                full_df = pd.DataFrame([parsed])
+            else:
+                raise ValueError("JSON must be an array or object")
+
+            # Apply num_rows limit
+            if num_rows > 0 and len(full_df) > num_rows:
+                full_df = full_df.head(num_rows)
+    except json.JSONDecodeError:
+        # Fall back to trying JSON Lines if regular JSON parsing fails
+        content_stream = io.StringIO(content)
+        if num_rows > 0:
+            full_df = pd.read_json(content_stream, lines=True, nrows=num_rows)
+        else:
+            full_df = pd.read_json(content_stream, lines=True)
+
     # Store the full schema for later use
     full_schema = full_df.dtypes
-    
+
     # Apply column filtering if specified
     if columns:
         cols = [c.strip() for c in columns.split(',')]
@@ -325,7 +380,7 @@ def read_json_data(stream, num_rows, columns=None):
         df = full_df[valid_cols]
     else:
         df = full_df
-    
+
     # Return both the filtered dataframe and the full schema
     return df, full_schema
 
@@ -562,10 +617,37 @@ def get_record_count(service, bucket, object_path, input_format, delimiter=None)
                 chunk_count += len(chunk)
             return chunk_count
         elif input_format == 'json':
-            chunk_count = 0
-            for chunk in pd.read_json(stream, lines=True, chunksize=10000):
-                chunk_count += len(chunk)
-            return chunk_count
+            # Read content to detect format
+            content = stream.read()
+            if isinstance(content, bytes):
+                content = content.decode('utf-8')
+
+            content_stripped = content.strip()
+            if not content_stripped:
+                return 0
+
+            # Check if it's JSON Lines or regular JSON
+            first_char = content_stripped[0]
+            if first_char == '[':
+                # Regular JSON array
+                parsed = json.loads(content)
+                return len(parsed) if isinstance(parsed, list) else 1
+            elif first_char == '{':
+                # Could be JSON Lines or single object
+                lines = [l.strip() for l in content_stripped.split('\n') if l.strip()]
+                if len(lines) > 1 and all(l.startswith('{') for l in lines[:min(5, len(lines))]):
+                    # JSON Lines - count lines
+                    return len(lines)
+                else:
+                    # Single JSON object
+                    return 1
+            else:
+                # Try JSON Lines as fallback
+                content_stream = io.StringIO(content)
+                chunk_count = 0
+                for chunk in pd.read_json(content_stream, lines=True, chunksize=10000):
+                    chunk_count += len(chunk)
+                return chunk_count
         
         return "Unknown"
 
