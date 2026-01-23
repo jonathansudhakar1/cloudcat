@@ -68,7 +68,7 @@
         "priceCurrency": "USD"
       },
       "description": "CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats.",
-      "softwareVersion": "0.1.4",
+      "softwareVersion": "0.2.2",
       "author": {
         "@type": "Person",
         "name": "Jonathan Sudhakar"
@@ -240,13 +240,15 @@
                 <div class="install-commands">
                     <div class="install-command">
                         <span class="install-label">macOS</span>
+                        <span class="platform-note">Apple Silicon only</span>
                         <code>brew install jonathansudhakar1/cloudcat/cloudcat</code>
                         <button class="copy-btn" data-copy="brew install jonathansudhakar1/cloudcat/cloudcat" aria-label="Copy Homebrew install command">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                         </button>
                     </div>
-                    <div class="install-command">
+                    <div class="install-command recommended">
                         <span class="install-label">pip</span>
+                        <span class="recommended-badge">recommended</span>
                         <code>pip install 'cloudcat[all]'</code>
                         <button class="copy-btn" data-copy="pip install 'cloudcat[all]'" aria-label="Copy pip install command">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -1690,7 +1692,12 @@ pytest tests/test_cli.py</code><button class="copy-btn" aria-label="Copy code"><
 <li><strong>Plugins</strong> - Custom reader/writer plugins</li>
 </ul>
 <h3>Version History</h3>
-<p><strong>v0.1.4</strong> (Current)</p>
+<p><strong>v0.2.2</strong> (Current)</p>
+<ul>
+<li>Bug fixes and improvements</li>
+<li>Homebrew support for Apple Silicon</li>
+</ul>
+<p><strong>v0.2.0</strong></p>
 <ul>
 <li>Azure Blob Storage support</li>
 <li>Avro and ORC format support</li>

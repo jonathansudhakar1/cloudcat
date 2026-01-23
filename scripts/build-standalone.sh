@@ -65,9 +65,9 @@ echo_info "Building with PyInstaller..."
 cd "$BUILD_DIR"
 pyinstaller cloudcat.spec --noconfirm --clean
 
-# Test the build
+# Test the build (now in dist/cloudcat/ directory)
 echo_info "Testing build..."
-if ./dist/cloudcat --help > /dev/null 2>&1; then
+if ./dist/cloudcat/cloudcat --help > /dev/null 2>&1; then
     echo_info "Build test passed - executable runs successfully"
 else
     echo_error "Build test failed - executable does not run"
@@ -81,7 +81,7 @@ ARCH=$(uname -m)
 
 echo ""
 echo_info "Build complete!"
-echo "  Executable: $BUILD_DIR/dist/cloudcat"
+echo "  Executable: $BUILD_DIR/dist/cloudcat/cloudcat"
 echo "  Version:    $VERSION"
 echo "  Arch:       $ARCH"
 
@@ -103,5 +103,5 @@ deactivate
 
 echo ""
 echo_info "To test the executable:"
-echo "  $BUILD_DIR/dist/cloudcat --help"
-echo "  $BUILD_DIR/dist/cloudcat -p gcs://your-bucket/file.csv"
+echo "  $BUILD_DIR/dist/cloudcat/cloudcat --help"
+echo "  $BUILD_DIR/dist/cloudcat/cloudcat -p gcs://your-bucket/file.csv"

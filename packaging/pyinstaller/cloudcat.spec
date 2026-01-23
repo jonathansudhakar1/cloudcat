@@ -138,8 +138,8 @@ hiddenimports += [
 ]
 
 a = Analysis(
-    ['../../cloudcat/cli.py'],
-    pathex=[],
+    ['entry.py'],
+    pathex=['../..'],  # Add project root to find cloudcat package
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
@@ -169,24 +169,32 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# Use --onedir mode for faster startup (no extraction needed each run)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,  # Don't bundle binaries in EXE
     name='cloudcat',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False,  # UPX can cause issues on macOS
-    upx_exclude=[],
-    runtime_tmpdir=None,
+    upx=False,
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=None,  # Use native architecture
+    target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+)
+
+# Collect all files into a directory
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    name='cloudcat',
 )

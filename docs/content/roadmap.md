@@ -42,7 +42,11 @@ CloudCat is actively developed. Here's what's been accomplished and what's plann
 
 ### Version History
 
-**v0.1.4** (Current)
+**v0.2.2** (Current)
+- Bug fixes and improvements
+- Homebrew support for Apple Silicon
+
+**v0.2.0**
 - Azure Blob Storage support
 - Avro and ORC format support
 - WHERE clause filtering

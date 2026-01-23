@@ -328,6 +328,29 @@ img {
     min-width: 50px;
 }
 
+.recommended-badge {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent-success);
+    background: rgba(35, 134, 54, 0.15);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: var(--border-radius-sm);
+    margin-right: var(--spacing-xs);
+}
+
+.platform-note {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-right: var(--spacing-xs);
+}
+
 .install-command code {
     color: var(--accent-primary);
 }

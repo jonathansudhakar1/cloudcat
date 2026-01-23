@@ -48,10 +48,10 @@ jobs:
           cd packaging/pyinstaller
           pyinstaller cloudcat.spec --noconfirm --clean
 
-          # Verify the build
+          # Verify the build (now in dist/cloudcat/ directory)
           echo "Testing executable..."
-          ./dist/cloudcat --help
-          ./dist/cloudcat --version
+          ./dist/cloudcat/cloudcat --help
+          ./dist/cloudcat/cloudcat --version
 
       - name: Create tarball
         id: tarball
@@ -60,6 +60,7 @@ jobs:
           TARBALL="cloudcat-${VERSION}-macos-arm64.tar.gz"
 
           cd packaging/pyinstaller/dist
+          # Tar the entire cloudcat directory
           tar -czvf "$TARBALL" cloudcat
 
           # Calculate SHA256
@@ -151,7 +152,10 @@ jobs:
             end
 
             def install
-              bin.install "cloudcat"
+              # Install the entire cloudcat directory to libexec
+              libexec.install Dir["cloudcat/*"]
+              # Create a symlink in bin
+              bin.install_symlink libexec/"cloudcat"
             end
 
             def caveats
