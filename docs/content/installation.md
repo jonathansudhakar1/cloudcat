@@ -5,7 +5,7 @@
 The easiest way to install on Apple Silicon Macs (M1/M2/M3/M4) — no Python required:
 
 ```bash
-brew install jonathansudhakar1/cloudcat/cloudcat
+brew tap jonathansudhakar1/cloudcat https://github.com/jonathansudhakar1/cloudcat.git && brew install cloudcat
 ```
 
 This installs a self-contained binary that includes Python and all dependencies.
@@ -15,7 +15,7 @@ This installs a self-contained binary that includes Python and all dependencies.
 To upgrade:
 
 ```bash
-brew upgrade cloudcat
+brew update && brew upgrade cloudcat
 ```
 
 > **Note:** On first run, macOS may block the app. Go to System Settings > Privacy & Security and click "Allow", or run:

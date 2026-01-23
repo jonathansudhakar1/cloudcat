@@ -314,6 +314,8 @@ img {
     padding: var(--spacing-sm) var(--spacing-lg);
     font-family: var(--font-mono);
     font-size: 14px;
+    max-width: 100%;
+    flex-wrap: wrap;
 }
 
 .install-label {
@@ -353,6 +355,9 @@ img {
 
 .install-command code {
     color: var(--accent-primary);
+    word-break: break-all;
+    white-space: normal;
+    text-align: left;
 }
 
 .copy-btn {

@@ -241,8 +241,8 @@
                     <div class="install-command">
                         <span class="install-label">macOS</span>
                         <span class="platform-note">Apple Silicon only</span>
-                        <code>brew install jonathansudhakar1/cloudcat/cloudcat</code>
-                        <button class="copy-btn" data-copy="brew install jonathansudhakar1/cloudcat/cloudcat" aria-label="Copy Homebrew install command">
+                        <code>brew tap jonathansudhakar1/cloudcat https://github.com/jonathansudhakar1/cloudcat.git && brew install cloudcat</code>
+                        <button class="copy-btn" data-copy="brew tap jonathansudhakar1/cloudcat https://github.com/jonathansudhakar1/cloudcat.git && brew install cloudcat" aria-label="Copy Homebrew install command">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                         </button>
                     </div>
@@ -504,12 +504,12 @@
 <h2>Installation</h2>
 <h3>Homebrew (macOS Apple Silicon)</h3>
 <p>The easiest way to install on Apple Silicon Macs (M1/M2/M3/M4) — no Python required:</p>
-<div class="code-block"><pre><code class="hljs language-bash">brew install jonathansudhakar1/cloudcat/cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This installs a self-contained binary that includes Python and all dependencies.</p>
+<div class="code-block"><pre><code class="hljs language-bash">brew tap jonathansudhakar1/cloudcat https://github.com/jonathansudhakar1/cloudcat.git && brew install cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This installs a self-contained binary that includes Python and all dependencies.</p>
 <blockquote>
 <p><strong>Intel Mac users:</strong> Homebrew bottles are not available for Intel. Please use <code>pip install &#39;cloudcat[all]&#39;</code> instead.</p>
 </blockquote>
 <p>To upgrade:</p>
-<div class="code-block"><pre><code class="hljs language-bash">brew upgrade cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><blockquote>
+<div class="code-block"><pre><code class="hljs language-bash">brew update && brew upgrade cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><blockquote>
 <p><strong>Note:</strong> On first run, macOS may block the app. Go to System Settings &gt; Privacy &amp; Security and click &quot;Allow&quot;, or run:</p>
 <div class="code-block"><pre><code class="hljs language-bash">xattr -d com.apple.quarantine $(<span class="hljs-built_in">which</span> cloudcat)</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div></blockquote>
 <h3>pip (All Platforms)</h3>
