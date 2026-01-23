@@ -75,40 +75,44 @@ class TestDataReading:
 
     @patch('cloudcat.cli.HAS_PARQUET', True)
     @patch('cloudcat.cli.pq')
-    def test_get_record_count_parquet(self, mock_pq):
+    @patch('cloudcat.cli.get_stream')
+    def test_get_record_count_parquet(self, mock_get_stream, mock_pq):
         mock_file = MagicMock()
         mock_file.metadata.num_rows = 1000
         mock_pq.ParquetFile.return_value = mock_file
-        
-        with patch('cloudcat.cli.get_gcs_stream') as mock_stream:
-            mock_stream.return_value.read.return_value = b"parquet_data"
-            count = get_record_count("gcs", "bucket", "file.parquet", "parquet")
-            
-            assert count == 1000
+        mock_get_stream.return_value.read.return_value = b"parquet_data"
 
+        count = get_record_count("gcs", "bucket", "file.parquet", "parquet")
+
+        assert count == 1000
+
+    @patch('cloudcat.cli.get_stream')
     @patch('cloudcat.cli.pd.read_csv')
-    def test_get_record_count_csv(self, mock_read_csv):
+    def test_get_record_count_csv(self, mock_read_csv, mock_get_stream):
         # Mock chunked reading
         chunk1 = pd.DataFrame({"col1": [1, 2, 3]})
         chunk2 = pd.DataFrame({"col1": [4, 5]})
         mock_read_csv.return_value = [chunk1, chunk2]
-        
-        with patch('cloudcat.cli.get_gcs_stream'):
-            count = get_record_count("gcs", "bucket", "file.csv", "csv")
-            
-            assert count == 5
 
-    @patch('cloudcat.cli.pd.read_json')
-    def test_get_record_count_json(self, mock_read_json):
-        # Mock chunked reading
-        chunk1 = pd.DataFrame({"col1": [1, 2, 3, 4]})
-        chunk2 = pd.DataFrame({"col1": [5, 6]})
-        mock_read_json.return_value = [chunk1, chunk2]
-        
-        with patch('cloudcat.cli.get_s3_stream'):
-            count = get_record_count("s3", "bucket", "file.json", "json")
-            
-            assert count == 6
+        count = get_record_count("gcs", "bucket", "file.csv", "csv")
+
+        assert count == 5
+
+    @patch('cloudcat.cli.get_stream')
+    def test_get_record_count_json(self, mock_get_stream):
+        # Mock JSON Lines content (6 records)
+        json_lines = """{"col1": 1}
+{"col1": 2}
+{"col1": 3}
+{"col1": 4}
+{"col1": 5}
+{"col1": 6}"""
+        mock_stream = io.BytesIO(json_lines.encode('utf-8'))
+        mock_get_stream.return_value = mock_stream
+
+        count = get_record_count("s3", "bucket", "file.json", "json")
+
+        assert count == 6
 
     def test_read_csv_all_rows(self):
         csv_data = "name,age\nJohn,25\nJane,30\nBob,35"

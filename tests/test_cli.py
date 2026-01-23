@@ -17,9 +17,9 @@ class TestCLI:
         mock_detect.return_value = "csv"
         mock_df = pd.DataFrame({"name": ["John"], "age": [25]})
         mock_read.return_value = (mock_df, mock_df.dtypes)
-        
-        result = self.runner.invoke(main, ['--path', 'gcs://bucket/file.csv'])
-        
+
+        result = self.runner.invoke(main, ['--path', 'gcs://bucket/file.csv', '--no-count'])
+
         assert result.exit_code == 0
         assert "John" in result.output
 
@@ -51,9 +51,10 @@ class TestCLI:
         
         result = self.runner.invoke(main, [
             '--path', 'gcs://bucket/file.parquet',
-            '--output-format', 'csv'
+            '--output-format', 'csv',
+            '--no-count'
         ])
-        
+
         assert result.exit_code == 0
         assert "name,age" in result.output
         assert "John,25" in result.output
@@ -68,9 +69,10 @@ class TestCLI:
         result = self.runner.invoke(main, [
             '--path', 'gcs://bucket/file.csv',
             '--input-format', 'csv',
-            '--schema', 'schema_only'
+            '--schema', 'schema_only',
+            '--no-count'
         ])
-        
+
         assert result.exit_code == 0
         assert "Schema:" in result.output
         assert "name:" in result.output
@@ -91,7 +93,7 @@ class TestCLI:
         ])
         
         assert result.exit_code == 0
-        mock_read.assert_called_with("s3", "bucket", "file.json", "json", 2, None, None)
+        mock_read.assert_called_with("s3", "bucket", "file.json", "json", 2, None, None, 0)
 
     @patch('cloudcat.cli.read_data')
     @patch('cloudcat.cli.parse_cloud_path')
@@ -103,11 +105,12 @@ class TestCLI:
         result = self.runner.invoke(main, [
             '--path', 'gcs://bucket/file.csv',
             '--input-format', 'csv',
-            '--columns', 'name,age'
+            '--columns', 'name,age',
+            '--no-count'
         ])
-        
+
         assert result.exit_code == 0
-        mock_read.assert_called_with("gcs", "bucket", "file.csv", "csv", 10, "name,age", None)
+        mock_read.assert_called_with("gcs", "bucket", "file.csv", "csv", 10, "name,age", None, 0)
 
     @patch('cloudcat.cli.read_data')
     @patch('cloudcat.cli.parse_cloud_path')
@@ -119,11 +122,46 @@ class TestCLI:
         result = self.runner.invoke(main, [
             '--path', 'gcs://bucket/file.csv',
             '--input-format', 'csv',
-            '--delimiter', '\\t'
+            '--delimiter', '\\t',
+            '--no-count'
         ])
-        
+
         assert result.exit_code == 0
-        mock_read.assert_called_with("gcs", "bucket", "file.csv", "csv", 10, None, "\t")
+        mock_read.assert_called_with("gcs", "bucket", "file.csv", "csv", 10, None, "\t", 0)
+
+    @patch('cloudcat.cli.read_data')
+    @patch('cloudcat.cli.parse_cloud_path')
+    def test_offset_option(self, mock_parse, mock_read):
+        mock_parse.return_value = ("s3", "bucket", "file.csv")
+        mock_df = pd.DataFrame({"name": ["John"], "age": [25]})
+        mock_read.return_value = (mock_df, mock_df.dtypes)
+
+        result = self.runner.invoke(main, [
+            '--path', 's3://bucket/file.csv',
+            '--input-format', 'csv',
+            '--offset', '5'
+        ])
+
+        assert result.exit_code == 0
+        mock_read.assert_called_with("s3", "bucket", "file.csv", "csv", 10, None, None, 5)
+
+    @patch('cloudcat.cli.read_data')
+    @patch('cloudcat.cli.parse_cloud_path')
+    def test_offset_with_num_rows(self, mock_parse, mock_read):
+        mock_parse.return_value = ("gcs", "bucket", "file.json")
+        mock_df = pd.DataFrame({"name": ["John"], "age": [25]})
+        mock_read.return_value = (mock_df, mock_df.dtypes)
+
+        result = self.runner.invoke(main, [
+            '--path', 'gcs://bucket/file.json',
+            '--input-format', 'json',
+            '--num-rows', '20',
+            '--offset', '10',
+            '--no-count'
+        ])
+
+        assert result.exit_code == 0
+        mock_read.assert_called_with("gcs", "bucket", "file.json", "json", 20, None, None, 10)
 
     @patch('cloudcat.cli.find_first_non_empty_file')
     @patch('cloudcat.cli.read_data')
@@ -136,9 +174,10 @@ class TestCLI:
         
         result = self.runner.invoke(main, [
             '--path', 'gcs://bucket/folder/',
-            '--multi-file-mode', 'first'
+            '--multi-file-mode', 'first',
+            '--no-count'
         ])
-        
+
         assert result.exit_code == 0
         mock_find.assert_called_once()
 
@@ -207,9 +246,10 @@ class TestCLI:
         result = self.runner.invoke(main, [
             '--path', 'gcs://bucket/file.csv',
             '--input-format', 'csv',
-            '--schema', 'dont_show'
+            '--schema', 'dont_show',
+            '--no-count'
         ])
-        
+
         assert result.exit_code == 0
         assert "Schema:" not in result.output
         assert "John" in result.output

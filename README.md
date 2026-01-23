@@ -13,7 +13,6 @@
   <a href="https://pypi.org/project/cloudcat/"><img src="https://img.shields.io/pypi/pyversions/cloudcat.svg?style=flat-square&logo=python&logoColor=white" alt="Python versions"></a>
   <a href="https://pypi.org/project/cloudcat/"><img src="https://img.shields.io/pypi/dm/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="Downloads"></a>
   <a href="https://github.com/jonathansudhakar1/cloudcat/blob/main/LICENSE"><img src="https://img.shields.io/github/license/jonathansudhakar1/cloudcat.svg?style=flat-square" alt="License"></a>
-  <a href="https://github.com/jonathansudhakar1/cloudcat/stargazers"><img src="https://img.shields.io/github/stars/jonathansudhakar1/cloudcat.svg?style=flat-square&logo=github" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
@@ -41,17 +40,8 @@
 ## Installation
 
 ```bash
-# Basic installation
+# Standard installation (includes GCS, S3, and Azure support)
 pip install cloudcat
-
-# With Google Cloud Storage support
-pip install cloudcat[gcs]
-
-# With AWS S3 support
-pip install cloudcat[s3]
-
-# With Azure Blob Storage support
-pip install cloudcat[azure]
 
 # With Parquet file support
 pip install cloudcat[parquet]
@@ -65,7 +55,7 @@ pip install cloudcat[orc]
 # With compression support (zstd, lz4, snappy)
 pip install cloudcat[compression]
 
-# Full installation (recommended)
+# Full installation with all formats and compression
 pip install cloudcat[all]
 ```
 
@@ -426,8 +416,14 @@ CloudCat uses [Application Default Credentials (ADC)](https://cloud.google.com/d
 # Option 1: User credentials (for development)
 gcloud auth application-default login
 
-# Option 2: Service account (for production)
+# Option 2: Service account via environment variable
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+
+# Option 3: Service account via CLI option
+cloudcat -p gcs://bucket/data.csv --credentials /path/to/service-account.json
+
+# Option 4: Specify GCP project
+cloudcat -p gcs://bucket/data.csv --project my-gcp-project
 ```
 
 ### Amazon S3
@@ -443,13 +439,16 @@ export AWS_DEFAULT_REGION="us-east-1"
 # Option 2: AWS credentials file (~/.aws/credentials)
 aws configure
 
-# Option 3: IAM role (for EC2/ECS/Lambda)
+# Option 3: AWS named profile
+cloudcat -p s3://bucket/data.csv --profile production
+
+# Option 4: IAM role (for EC2/ECS/Lambda)
 # Automatically detected
 ```
 
 ### Azure Blob Storage
 
-CloudCat supports two authentication methods for Azure:
+CloudCat supports multiple authentication methods for Azure:
 
 ```bash
 # Option 1: Connection string (simplest)
@@ -457,8 +456,10 @@ export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountNa
 
 # Option 2: Account URL with DefaultAzureCredential (for Azure AD auth)
 export AZURE_STORAGE_ACCOUNT_URL="https://youraccount.blob.core.windows.net"
-# Then use Azure CLI, managed identity, or other Azure AD credentials
 az login
+
+# Option 3: Specify storage account via CLI option
+cloudcat -p az://container/data.csv --account mystorageaccount
 ```
 
 **Path format:** `az://container-name/path/to/blob`
@@ -584,17 +585,6 @@ pytest
 
 MIT License — see [LICENSE](LICENSE) for details.
 
-## Star History
-
-If you find CloudCat useful, please consider giving it a star on GitHub!
-
-[![Star History Chart](https://api.star-history.com/svg?repos=jonathansudhakar1/cloudcat&type=Date)](https://star-history.com/#jonathansudhakar1/cloudcat&Date)
-
----
-
-<p align="center">
-  Made with ❤️ by <a href="https://github.com/jonathansudhakar1">Jonathan Sudhakar</a>
-</p>
 
 <p align="center">
   <a href="https://github.com/jonathansudhakar1/cloudcat/issues">Report Bug</a> •

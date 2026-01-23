@@ -5,9 +5,21 @@ from pathlib import Path
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
+# Read version from package __init__.py
+def get_version():
+    version_file = this_directory / "cloudcat" / "__init__.py"
+    for line in version_file.read_text().splitlines():
+        if line.startswith("__version__"):
+            # Handle both single and double quotes
+            if '"' in line:
+                return line.split('"')[1]
+            elif "'" in line:
+                return line.split("'")[1]
+    return "0.0.0"
+
 setup(
     name="cloudcat",
-    version="0.1.4",
+    version=get_version(),
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
@@ -15,15 +27,17 @@ setup(
         "pandas>=1.3.0",
         "tabulate>=0.8.9",
         "colorama>=0.4.4",
+        # Cloud providers (included by default)
+        "google-cloud-storage>=2.0.0",
+        "boto3>=1.18.0",
+        "azure-storage-blob>=12.0.0",
+        "azure-identity>=1.0.0",
     ],
     tests_require=[
         "pytest>=6.0.0",
         "pytest-mock>=3.6.0",
     ],
     extras_require={
-        "gcs": ["google-cloud-storage>=2.0.0"],
-        "s3": ["boto3>=1.18.0"],
-        "azure": ["azure-storage-blob>=12.0.0", "azure-identity>=1.0.0"],
         "parquet": ["pyarrow>=5.0.0"],
         "avro": ["fastavro>=1.4.0"],
         "orc": ["pyarrow>=5.0.0"],
@@ -32,10 +46,6 @@ setup(
         "snappy": ["python-snappy>=0.6.0"],
         "compression": ["zstandard>=0.15.0", "lz4>=3.0.0", "python-snappy>=0.6.0"],
         "all": [
-            "google-cloud-storage>=2.0.0",
-            "boto3>=1.18.0",
-            "azure-storage-blob>=12.0.0",
-            "azure-identity>=1.0.0",
             "pyarrow>=5.0.0",
             "fastavro>=1.4.0",
             "zstandard>=0.15.0",
@@ -79,6 +89,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
     python_requires=">=3.7",
 )
