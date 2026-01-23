@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9R4ETP7SEH"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-9R4ETP7SEH');
+    </script>
+
     <!-- Primary Meta Tags -->
     <title>CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI</title>
     <meta name="title" content="CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI">
@@ -30,8 +39,8 @@
     <meta name="twitter:image" content="https://cloudcatcli.com/assets/logo.png">
 
     <!-- Favicons -->
-    <link rel="icon" type="image/png" href="/assets/logo.png">
-    <link rel="apple-touch-icon" href="/assets/logo.png">
+    <link rel="icon" type="image/png" href="/assets/logo_only.png">
+    <link rel="apple-touch-icon" href="/assets/logo_only.png">
 
     <!-- Preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -172,7 +181,7 @@
     <nav class="nav">
         <div class="nav-container">
             <a href="/" class="nav-logo">
-                <img src="/assets/logo.png" alt="CloudCat Logo" width="32" height="32">
+                <img src="/assets/logo_only.png" alt="CloudCat Logo" width="32" height="32">
                 <span>CloudCat</span>
             </a>
             <div class="nav-links">
@@ -191,7 +200,7 @@
                     <span class="star-count" id="star-count"></span>
                 </a>
                 <a href="https://pypi.org/project/cloudcat/" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
-                    Install
+                    PyPI
                 </a>
             </div>
             <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
@@ -205,7 +214,7 @@
     <!-- Hero Section -->
     <header class="hero">
         <div class="hero-container">
-            <img src="/assets/logo.png" alt="CloudCat - Cloud Storage Data Preview Tool" class="hero-logo" width="120" height="120">
+            <img src="/assets/logo.png" alt="CloudCat - Cloud Storage Data Preview Tool" class="hero-logo">
             <h1>CloudCat</h1>
             <p class="hero-tagline">The Swiss Army knife for viewing cloud storage data from your terminal</p>
 
@@ -491,9 +500,12 @@
 </section>
 <section id="installation" class="doc-section">
 <h2>Installation</h2>
-<h3>Homebrew (macOS)</h3>
-<p>The easiest way to install on macOS — no Python required:</p>
+<h3>Homebrew (macOS Apple Silicon)</h3>
+<p>The easiest way to install on Apple Silicon Macs (M1/M2/M3/M4) — no Python required:</p>
 <div class="code-block"><pre><code class="hljs language-bash">brew install jonathansudhakar1/cloudcat/cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This installs a self-contained binary that includes Python and all dependencies.</p>
+<blockquote>
+<p><strong>Intel Mac users:</strong> Homebrew bottles are not available for Intel. Please use <code>pip install &#39;cloudcat[all]&#39;</code> instead.</p>
+</blockquote>
 <p>To upgrade:</p>
 <div class="code-block"><pre><code class="hljs language-bash">brew upgrade cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><blockquote>
 <p><strong>Note:</strong> On first run, macOS may block the app. Go to System Settings &gt; Privacy &amp; Security and click &quot;Allow&quot;, or run:</p>
@@ -548,8 +560,8 @@
 </tr>
 </tbody></table></div><h3>Requirements</h3>
 <ul>
-<li><strong>Homebrew</strong>: macOS (Intel or Apple Silicon)</li>
-<li><strong>pip</strong>: Python 3.7 or higher</li>
+<li><strong>Homebrew</strong>: macOS Apple Silicon (M1/M2/M3/M4). Intel Mac users should use pip.</li>
+<li><strong>pip</strong>: Python 3.7 or higher (all platforms)</li>
 <li><strong>Cloud Credentials</strong>: Configured for your cloud provider (see <a href="#authentication">Authentication</a>)</li>
 </ul>
 <blockquote>
@@ -1723,11 +1735,7 @@ pytest tests/test_cli.py</code><button class="copy-btn" aria-label="Copy code"><
     <footer class="footer">
         <div class="footer-container">
             <div class="footer-brand">
-                <img src="/assets/logo.png" alt="CloudCat Logo" width="40" height="40">
-                <div>
-                    <strong>CloudCat</strong>
-                    <p>Preview cloud storage data from your terminal</p>
-                </div>
+                <img src="/assets/logo.png" alt="CloudCat Logo" class="footer-logo">
             </div>
             <div class="footer-links">
                 <div class="footer-col">

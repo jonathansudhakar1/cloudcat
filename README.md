@@ -40,15 +40,17 @@
 
 ## Installation
 
-### Homebrew (macOS)
+### Homebrew (macOS Apple Silicon)
 
-The easiest way to install on macOS — no Python required:
+The easiest way to install on Apple Silicon Macs (M1/M2/M3/M4) — no Python required:
 
 ```bash
 brew install jonathansudhakar1/cloudcat/cloudcat
 ```
 
 This installs a self-contained binary that includes Python and all dependencies.
+
+> **Intel Mac users:** Homebrew bottles are not available for Intel. Please use `pip install 'cloudcat[all]'` instead.
 
 To upgrade:
 
@@ -93,8 +95,8 @@ pip install --upgrade 'cloudcat[all]'
 
 ### Requirements
 
-- **Homebrew**: macOS (Intel or Apple Silicon)
-- **pip**: Python 3.7+
+- **Homebrew**: macOS (Apple Silicon only). Intel Mac users should use pip.
+- **pip**: Python 3.7+ (all platforms)
 - Cloud provider credentials configured (see [Authentication](#authentication))
 
 ## Quick Start

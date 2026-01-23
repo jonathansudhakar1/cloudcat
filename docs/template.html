@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9R4ETP7SEH"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-9R4ETP7SEH');
+    </script>
+
     <!-- Primary Meta Tags -->
     <title>CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI</title>
     <meta name="title" content="CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI">
@@ -30,8 +39,8 @@
     <meta name="twitter:image" content="https://cloudcatcli.com/assets/logo.png">
 
     <!-- Favicons -->
-    <link rel="icon" type="image/png" href="/assets/logo.png">
-    <link rel="apple-touch-icon" href="/assets/logo.png">
+    <link rel="icon" type="image/png" href="/assets/logo_only.png">
+    <link rel="apple-touch-icon" href="/assets/logo_only.png">
 
     <!-- Preconnect -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -172,7 +181,7 @@
     <nav class="nav">
         <div class="nav-container">
             <a href="/" class="nav-logo">
-                <img src="/assets/logo.png" alt="CloudCat Logo" width="32" height="32">
+                <img src="/assets/logo_only.png" alt="CloudCat Logo" width="32" height="32">
                 <span>CloudCat</span>
             </a>
             <div class="nav-links">
@@ -185,7 +194,7 @@
                     <span class="star-count" id="star-count"></span>
                 </a>
                 <a href="https://pypi.org/project/cloudcat/" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
-                    Install
+                    PyPI
                 </a>
             </div>
             <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
@@ -199,7 +208,7 @@
     <!-- Hero Section -->
     <header class="hero">
         <div class="hero-container">
-            <img src="/assets/logo.png" alt="CloudCat - Cloud Storage Data Preview Tool" class="hero-logo" width="120" height="120">
+            <img src="/assets/logo.png" alt="CloudCat - Cloud Storage Data Preview Tool" class="hero-logo">
             <h1>CloudCat</h1>
             <p class="hero-tagline">The Swiss Army knife for viewing cloud storage data from your terminal</p>
 
@@ -324,11 +333,7 @@
     <footer class="footer">
         <div class="footer-container">
             <div class="footer-brand">
-                <img src="/assets/logo.png" alt="CloudCat Logo" width="40" height="40">
-                <div>
-                    <strong>CloudCat</strong>
-                    <p>Preview cloud storage data from your terminal</p>
-                </div>
+                <img src="/assets/logo.png" alt="CloudCat Logo" class="footer-logo">
             </div>
             <div class="footer-links">
                 <div class="footer-col">

@@ -1,4 +1,4 @@
-name: Build Homebrew Bottles
+name: Build Homebrew Bottle
 
 on:
   release:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to build (e.g., 0.1.4)'
+        description: 'Version to build (e.g., 0.2.0)'
         required: true
 
 env:
@@ -14,16 +14,7 @@ env:
 
 jobs:
   build-macos:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-13      # Intel
-            arch: x86_64
-          - os: macos-14      # Apple Silicon
-            arch: arm64
-
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest  # Apple Silicon (arm64)
 
     steps:
       - name: Checkout code
@@ -66,8 +57,7 @@ jobs:
         id: tarball
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          ARCH="${{ matrix.arch }}"
-          TARBALL="cloudcat-${VERSION}-macos-${ARCH}.tar.gz"
+          TARBALL="cloudcat-${VERSION}-macos-arm64.tar.gz"
 
           cd packaging/pyinstaller/dist
           tar -czvf "$TARBALL" cloudcat
@@ -83,7 +73,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cloudcat-${{ steps.version.outputs.version }}-macos-${{ matrix.arch }}
+          name: cloudcat-macos-arm64
           path: packaging/pyinstaller/dist/cloudcat-*.tar.gz
           retention-days: 7
 
@@ -93,17 +83,11 @@ jobs:
     if: github.event_name == 'release'
 
     steps:
-      - name: Download all artifacts
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
+          name: cloudcat-macos-arm64
           path: ./artifacts
-          pattern: cloudcat-*
-          merge-multiple: true
-
-      - name: List artifacts
-        run: |
-          echo "Downloaded artifacts:"
-          find ./artifacts -type f -name "*.tar.gz"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
@@ -123,36 +107,29 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download all artifacts
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
+          name: cloudcat-macos-arm64
           path: ./artifacts
-          pattern: cloudcat-*
-          merge-multiple: true
 
-      - name: Get version and checksums
+      - name: Get version and checksum
         id: info
         run: |
           VERSION="${{ github.event.release.tag_name }}"
           VERSION="${VERSION#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-          # Calculate SHA256 for each architecture
-          SHA256_X86=$(shasum -a 256 ./artifacts/cloudcat-${VERSION}-macos-x86_64.tar.gz | cut -d' ' -f1)
-          SHA256_ARM=$(shasum -a 256 ./artifacts/cloudcat-${VERSION}-macos-arm64.tar.gz | cut -d' ' -f1)
-
-          echo "sha256_x86=$SHA256_X86" >> $GITHUB_OUTPUT
-          echo "sha256_arm=$SHA256_ARM" >> $GITHUB_OUTPUT
+          SHA256=$(shasum -a 256 ./artifacts/cloudcat-${VERSION}-macos-arm64.tar.gz | cut -d' ' -f1)
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
           echo "Version: $VERSION"
-          echo "SHA256 (x86_64): $SHA256_X86"
-          echo "SHA256 (arm64): $SHA256_ARM"
+          echo "SHA256: $SHA256"
 
       - name: Update formula
         run: |
           VERSION="${{ steps.info.outputs.version }}"
-          SHA256_X86="${{ steps.info.outputs.sha256_x86 }}"
-          SHA256_ARM="${{ steps.info.outputs.sha256_arm }}"
+          SHA256="${{ steps.info.outputs.sha256 }}"
 
           mkdir -p Formula
 
@@ -164,13 +141,12 @@ jobs:
             license "MIT"
 
             on_macos do
-              on_intel do
-                url "https://github.com/jonathansudhakar1/cloudcat/releases/download/v${VERSION}/cloudcat-${VERSION}-macos-x86_64.tar.gz"
-                sha256 "${SHA256_X86}"
-              end
               on_arm do
                 url "https://github.com/jonathansudhakar1/cloudcat/releases/download/v${VERSION}/cloudcat-${VERSION}-macos-arm64.tar.gz"
-                sha256 "${SHA256_ARM}"
+                sha256 "${SHA256}"
+              end
+              on_intel do
+                odie "Intel Macs are not supported. Please use: pip install 'cloudcat[all]'"
               end
             end
 

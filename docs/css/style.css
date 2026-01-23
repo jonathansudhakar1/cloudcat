@@ -252,8 +252,9 @@ img {
 }
 
 .hero-logo {
-    width: 120px;
-    height: 120px;
+    max-width: 280px;
+    width: 100%;
+    height: auto;
     margin-bottom: var(--spacing-lg);
     animation: float 3s ease-in-out infinite;
 }
@@ -772,27 +773,12 @@ tbody tr:hover {
 }
 
 .footer-brand {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
     margin-bottom: var(--spacing-xl);
 }
 
-.footer-brand img {
-    width: 40px;
-    height: 40px;
-}
-
-.footer-brand strong {
-    display: block;
-    font-size: 18px;
-    margin-bottom: var(--spacing-xs);
-}
-
-.footer-brand p {
-    color: var(--text-secondary);
-    font-size: 14px;
-    margin: 0;
+.footer-logo {
+    max-width: 200px;
+    height: auto;
 }
 
 .footer-links {
