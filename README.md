@@ -17,11 +17,11 @@
 </p>
 
 <p align="center">
+  <a href="https://cloudcatcli.com">Documentation</a> •
   <a href="#installation">Installation</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#features">Features</a> •
-  <a href="#examples">Examples</a> •
-  <a href="#documentation">Documentation</a>
+  <a href="#examples">Examples</a>
 </p>
 
 ---

@@ -65,9 +65,10 @@ setup(
     long_description_content_type="text/markdown",
     keywords="cloud, gcs, s3, azure, cli, storage, data, parquet, csv, json, avro, orc, google-cloud, aws, azure-blob, data-engineering, etl, spark, bigquery, databricks, kafka, hive",
     project_urls={
+        "Homepage": "https://github.com/jonathansudhakar1/cloudcat",
+        "Documentation": "https://cloudcatcli.com",
         "Bug Reports": "https://github.com/jonathansudhakar1/cloudcat/issues",
         "Source": "https://github.com/jonathansudhakar1/cloudcat",
-        "Documentation": "https://github.com/jonathansudhakar1/cloudcat#readme",
     },
     url="https://github.com/jonathansudhakar1/cloudcat",
     classifiers=[
