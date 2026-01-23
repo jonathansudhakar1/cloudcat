@@ -15,6 +15,9 @@ from colorama import init, Fore, Style
 # Initialize colorama
 init()
 
+# Import version
+from . import __version__
+
 # Import from modular components
 from .config import cloud_config, SKIP_PATTERNS, FORMAT_EXTENSION_MAP
 from .compression import detect_compression, decompress_stream, strip_compression_extension
@@ -546,6 +549,7 @@ def get_record_count(
 
 
 @click.command()
+@click.version_option(version=__version__, prog_name='cloudcat')
 @click.option('--path', '-p', required=True, help='Path to the file or directory (gcs://, s3://, or az://)')
 @click.option('--output-format', '-o', type=click.Choice(['json', 'jsonp', 'csv', 'table']), default='table',
               help='Output format (default: table)')
