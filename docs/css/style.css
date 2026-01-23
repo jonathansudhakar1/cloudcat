@@ -318,6 +318,15 @@ img {
     flex-wrap: wrap;
 }
 
+.install-command-multiline {
+    align-items: flex-start;
+}
+
+.install-command-multiline code {
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
 .install-label {
     font-family: var(--font-sans);
     font-size: 12px;

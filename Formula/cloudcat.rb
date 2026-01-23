@@ -15,8 +15,8 @@ class Cloudcat < Formula
   end
 
   def install
-    # Install the entire cloudcat directory to libexec
-    libexec.install Dir["cloudcat/*"]
+    # Install all extracted files to libexec
+    libexec.install Dir["*"]
     # Create a symlink in bin
     bin.install_symlink libexec/"cloudcat"
   end
