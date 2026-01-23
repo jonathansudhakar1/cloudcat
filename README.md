@@ -11,7 +11,8 @@
 <p align="center">
   <a href="https://pypi.org/project/cloudcat/"><img src="https://img.shields.io/pypi/v/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="PyPI version"></a>
   <a href="https://pypi.org/project/cloudcat/"><img src="https://img.shields.io/pypi/pyversions/cloudcat.svg?style=flat-square&logo=python&logoColor=white" alt="Python versions"></a>
-  <a href="https://pypi.org/project/cloudcat/"><img src="https://img.shields.io/pypi/dm/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="Downloads"></a>
+  <a href="https://pypi.org/project/cloudcat/"><img src="https://img.shields.io/pypi/dm/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="PyPI Downloads"></a>
+  <a href="https://github.com/jonathansudhakar1/cloudcat/releases"><img src="https://img.shields.io/github/downloads/jonathansudhakar1/cloudcat/total.svg?style=flat-square&logo=homebrew&logoColor=white&label=homebrew" alt="Homebrew Downloads"></a>
   <a href="https://github.com/jonathansudhakar1/cloudcat/blob/main/LICENSE"><img src="https://img.shields.io/github/license/jonathansudhakar1/cloudcat.svg?style=flat-square" alt="License"></a>
 </p>
 
@@ -39,29 +40,61 @@
 
 ## Installation
 
+### Homebrew (macOS)
+
+The easiest way to install on macOS — no Python required:
+
 ```bash
+brew install jonathansudhakar1/cloudcat/cloudcat
+```
+
+This installs a self-contained binary that includes Python and all dependencies.
+
+To upgrade:
+
+```bash
+brew upgrade cloudcat
+```
+
+> **Note:** On first run, macOS may block the app. Go to System Settings > Privacy & Security and click "Allow", or run:
+> ```bash
+> xattr -d com.apple.quarantine $(which cloudcat)
+> ```
+
+### pip (Python)
+
+```bash
+# Full installation with all formats and compression
+pip install 'cloudcat[all]'
+
 # Standard installation (includes GCS, S3, and Azure support)
 pip install cloudcat
 
 # With Parquet file support
-pip install cloudcat[parquet]
+pip install 'cloudcat[parquet]'
 
 # With Avro file support
-pip install cloudcat[avro]
+pip install 'cloudcat[avro]'
 
 # With ORC file support (uses pyarrow)
-pip install cloudcat[orc]
+pip install 'cloudcat[orc]'
 
 # With compression support (zstd, lz4, snappy)
-pip install cloudcat[compression]
+pip install 'cloudcat[compression]'
+```
 
-# Full installation with all formats and compression
-pip install cloudcat[all]
+> **Note:** If using zsh (default on macOS), quotes around extras are required to prevent shell interpretation of brackets.
+
+To upgrade:
+
+```bash
+pip install --upgrade 'cloudcat[all]'
 ```
 
 ### Requirements
 
-- Python 3.7+
+- **Homebrew**: macOS (Intel or Apple Silicon)
+- **pip**: Python 3.7+
 - Cloud provider credentials configured (see [Authentication](#authentication))
 
 ## Quick Start

@@ -1,0 +1,57 @@
+# Homebrew formula template for cloudcat
+#
+# This template is used for reference. The actual formula is generated
+# automatically by the build-homebrew.yml GitHub Actions workflow.
+#
+# To use this template manually:
+#   1. Replace {{VERSION}} with the version number (e.g., 0.1.4)
+#   2. Replace {{SHA256_X86}} with the SHA256 of the x86_64 tarball
+#   3. Replace {{SHA256_ARM}} with the SHA256 of the arm64 tarball
+
+class Cloudcat < Formula
+  desc "Preview and analyze data files in cloud storage from your terminal"
+  homepage "https://github.com/jonathansudhakar1/cloudcat"
+  version "{{VERSION}}"
+  license "MIT"
+
+  on_macos do
+    on_intel do
+      url "https://github.com/jonathansudhakar1/cloudcat/releases/download/v{{VERSION}}/cloudcat-{{VERSION}}-macos-x86_64.tar.gz"
+      sha256 "{{SHA256_X86}}"
+    end
+    on_arm do
+      url "https://github.com/jonathansudhakar1/cloudcat/releases/download/v{{VERSION}}/cloudcat-{{VERSION}}-macos-arm64.tar.gz"
+      sha256 "{{SHA256_ARM}}"
+    end
+  end
+
+  def install
+    bin.install "cloudcat"
+  end
+
+  def caveats
+    <<~EOS
+      cloudcat requires cloud provider credentials to be configured:
+
+      Google Cloud Storage:
+        gcloud auth application-default login
+
+      Amazon S3:
+        aws configure
+
+      Azure Blob Storage:
+        az login
+        # or set AZURE_STORAGE_CONNECTION_STRING
+
+      For more information, see:
+        https://github.com/jonathansudhakar1/cloudcat#authentication
+
+      Note: On first run, you may need to allow the app in System Settings > Privacy & Security,
+      or run: xattr -d com.apple.quarantine $(which cloudcat)
+    EOS
+  end
+
+  test do
+    assert_match "Usage:", shell_output("#{bin}/cloudcat --help")
+  end
+end

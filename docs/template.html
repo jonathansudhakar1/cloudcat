@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Primary Meta Tags -->
+    <title>CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI</title>
+    <meta name="title" content="CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI">
+    <meta name="description" content="CloudCat is a powerful CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats with compression.">
+    <meta name="keywords" content="cloudcat, cloud storage cli, gcs preview, s3 preview, azure blob cli, parquet viewer, csv viewer, json viewer, avro reader, orc reader, cloud data tool, terminal tool, data engineering, data preview, cloud cli, aws s3 cat, gcs cat, azure cat">
+    <meta name="author" content="Jonathan Sudhakar">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="English">
+    <link rel="canonical" href="https://cloudcatcli.com/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://cloudcatcli.com/">
+    <meta property="og:title" content="CloudCat - The Swiss Army Knife for Cloud Storage Data">
+    <meta property="og:description" content="Preview and analyze data files in GCS, S3, and Azure from your terminal. No downloads required. Supports CSV, JSON, Parquet, Avro, ORC.">
+    <meta property="og:image" content="https://cloudcatcli.com/assets/logo.png">
+    <meta property="og:site_name" content="CloudCat">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://cloudcatcli.com/">
+    <meta name="twitter:title" content="CloudCat - Preview Cloud Storage Data from Terminal">
+    <meta name="twitter:description" content="Preview and analyze data files in GCS, S3, and Azure from your terminal. No downloads required.">
+    <meta name="twitter:image" content="https://cloudcatcli.com/assets/logo.png">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="/assets/logo.png">
+    <link rel="apple-touch-icon" href="/assets/logo.png">
+
+    <!-- Preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://api.github.com">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="/css/style.css">
+
+    <!-- JSON-LD Structured Data: SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "CloudCat",
+      "applicationCategory": "DeveloperApplication",
+      "applicationSubCategory": "Command Line Tool",
+      "operatingSystem": "Linux, macOS, Windows",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats.",
+      "softwareVersion": "0.1.4",
+      "author": {
+        "@type": "Person",
+        "name": "Jonathan Sudhakar"
+      },
+      "url": "https://cloudcatcli.com",
+      "downloadUrl": "https://pypi.org/project/cloudcat/",
+      "installUrl": "https://pypi.org/project/cloudcat/",
+      "codeRepository": "https://github.com/jonathansudhakar1/cloudcat",
+      "programmingLanguage": "Python",
+      "license": "https://opensource.org/licenses/MIT",
+      "featureList": [
+        "Google Cloud Storage support",
+        "Amazon S3 support",
+        "Azure Blob Storage support",
+        "CSV file preview",
+        "JSON file preview",
+        "Parquet file preview",
+        "Avro file preview",
+        "ORC file preview",
+        "Automatic compression handling",
+        "SQL-like filtering",
+        "Schema inspection",
+        "Multiple output formats"
+      ]
+    }
+    </script>
+
+    <!-- JSON-LD Structured Data: FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I preview a file in Google Cloud Storage without downloading?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Use CloudCat with the command: cloudcat -p gcs://bucket/file.csv to preview CSV, JSON, Parquet, Avro, or ORC files directly from GCS without downloading the entire file."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What file formats does CloudCat support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CloudCat supports CSV, JSON, JSON Lines, Parquet, Avro, ORC, and plain text files, with automatic decompression for gzip, zstd, lz4, snappy, and bz2 compressed files."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I install CloudCat?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Install CloudCat using pip: pip install 'cloudcat[all]' for full installation with all formats and compression support, or pip install cloudcat for standard installation."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can CloudCat preview S3 files?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, CloudCat supports Amazon S3. Use the command: cloudcat -p s3://bucket/path/file.parquet to preview files directly from S3 buckets."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does CloudCat support Azure Blob Storage?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, CloudCat supports Azure Blob Storage. Use az:// or azure:// URL schemes to preview files: cloudcat -p az://container/file.csv"
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- JSON-LD Structured Data: HowTo for Installation -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "How to Install CloudCat",
+      "description": "Install CloudCat CLI tool to preview cloud storage data from your terminal",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "name": "Install with pip",
+          "text": "Run: pip install 'cloudcat[all]' to install CloudCat with all features",
+          "url": "https://cloudcatcli.com/#installation"
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Configure cloud credentials",
+          "text": "Set up authentication for your cloud provider (GCS, S3, or Azure)",
+          "url": "https://cloudcatcli.com/#authentication"
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Preview your data",
+          "text": "Run: cloudcat -p gcs://bucket/data.csv to preview files",
+          "url": "https://cloudcatcli.com/#quickstart"
+        }
+      ]
+    }
+    </script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <img src="/assets/logo.png" alt="CloudCat Logo" width="32" height="32">
+                <span>CloudCat</span>
+            </a>
+            <div class="nav-links">
+                {{NAV}}
+            </div>
+            <div class="nav-actions">
+                <a href="https://github.com/jonathansudhakar1/cloudcat" class="btn btn-star" target="_blank" rel="noopener noreferrer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    <span>Star</span>
+                    <span class="star-count" id="star-count"></span>
+                </a>
+                <a href="https://pypi.org/project/cloudcat/" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+                    Install
+                </a>
+            </div>
+            <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-container">
+            <img src="/assets/logo.png" alt="CloudCat - Cloud Storage Data Preview Tool" class="hero-logo" width="120" height="120">
+            <h1>CloudCat</h1>
+            <p class="hero-tagline">The Swiss Army knife for viewing cloud storage data from your terminal</p>
+
+            <div class="hero-badges">
+                <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/pypi/v/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="PyPI version">
+                </a>
+                <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/pypi/pyversions/cloudcat.svg?style=flat-square&logo=python&logoColor=white" alt="Python versions">
+                </a>
+                <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/pypi/dm/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="PyPI Downloads">
+                </a>
+                <a href="https://github.com/jonathansudhakar1/cloudcat/releases" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/github/downloads/jonathansudhakar1/cloudcat/total.svg?style=flat-square&logo=homebrew&logoColor=white&label=homebrew" alt="Homebrew Downloads">
+                </a>
+                <a href="https://github.com/jonathansudhakar1/cloudcat/blob/main/LICENSE" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/github/license/jonathansudhakar1/cloudcat.svg?style=flat-square" alt="License">
+                </a>
+            </div>
+
+            <div class="hero-install">
+                <div class="install-commands">
+                    <div class="install-command">
+                        <span class="install-label">macOS</span>
+                        <code>brew install jonathansudhakar1/cloudcat/cloudcat</code>
+                        <button class="copy-btn" data-copy="brew install jonathansudhakar1/cloudcat/cloudcat" aria-label="Copy Homebrew install command">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </button>
+                    </div>
+                    <div class="install-command">
+                        <span class="install-label">pip</span>
+                        <code>pip install 'cloudcat[all]'</code>
+                        <button class="copy-btn" data-copy="pip install 'cloudcat[all]'" aria-label="Copy pip install command">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hero-providers">
+                <span class="provider-badge gcs">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm0 3.6c4.6 0 8.4 3.8 8.4 8.4s-3.8 8.4-8.4 8.4S3.6 16.6 3.6 12 7.4 3.6 12 3.6z"/></svg>
+                    Google Cloud Storage
+                </span>
+                <span class="provider-badge s3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0L2 6v12l10 6 10-6V6L12 0zm0 2.3l7.5 4.5v9L12 20.3l-7.5-4.5v-9L12 2.3z"/></svg>
+                    Amazon S3
+                </span>
+                <span class="provider-badge azure">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0L2 6v12l10 6 10-6V6L12 0zm0 2.3l7.5 4.5v9L12 20.3l-7.5-4.5v-9L12 2.3z"/></svg>
+                    Azure Blob Storage
+                </span>
+            </div>
+
+            <div class="hero-demo">
+                <div class="terminal">
+                    <div class="terminal-header">
+                        <span class="terminal-dot red"></span>
+                        <span class="terminal-dot yellow"></span>
+                        <span class="terminal-dot green"></span>
+                        <span class="terminal-title">Terminal</span>
+                    </div>
+                    <div class="terminal-body">
+                        <pre><code><span class="prompt">$</span> cloudcat -p gcs://bucket/data.parquet -n 5
+
+<span class="info">Reading from: gcs://bucket/data.parquet</span>
+<span class="info">Format: parquet | Records: 1,234,567</span>
+
+<span class="header">Schema:</span>
+  id: int64
+  name: string
+  email: string
+  created_at: timestamp
+
+<span class="table">┌────────┬─────────────┬─────────────────────┬────────────────────┐
+│ id     │ name        │ email               │ created_at         │
+├────────┼─────────────┼─────────────────────┼────────────────────┤
+│ 1      │ Alice       │ alice@example.com   │ 2024-01-15 10:30   │
+│ 2      │ Bob         │ bob@example.com     │ 2024-01-15 11:45   │
+│ 3      │ Charlie     │ charlie@example.com │ 2024-01-16 09:00   │
+│ 4      │ Diana       │ diana@example.com   │ 2024-01-16 14:20   │
+│ 5      │ Eve         │ eve@example.com     │ 2024-01-17 08:15   │
+└────────┴─────────────┴─────────────────────┴────────────────────┘</span></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Table of Contents -->
+            <aside class="toc">
+                <h3>On This Page</h3>
+                <ul>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#installation">Installation</a></li>
+                    <li><a href="#quickstart">Quick Start</a></li>
+                    <li><a href="#command-reference">CLI Reference</a></li>
+                    <li><a href="#where-operators">WHERE Operators</a></li>
+                    <li><a href="#authentication">Authentication</a></li>
+                    <li><a href="#directory-operations">Directory Operations</a></li>
+                    <li><a href="#output-formats">Output Formats</a></li>
+                    <li><a href="#use-cases">Use Cases</a></li>
+                    <li><a href="#performance">Performance Tips</a></li>
+                    <li><a href="#troubleshooting">Troubleshooting</a></li>
+                    <li><a href="#contributing">Contributing</a></li>
+                    <li><a href="#roadmap">Roadmap</a></li>
+                </ul>
+            </aside>
+
+            <!-- Documentation Sections -->
+            <div class="content">
+                {{SECTIONS}}
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <img src="/assets/logo.png" alt="CloudCat Logo" width="40" height="40">
+                <div>
+                    <strong>CloudCat</strong>
+                    <p>Preview cloud storage data from your terminal</p>
+                </div>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>Resources</h4>
+                    <a href="#installation">Installation</a>
+                    <a href="#quickstart">Quick Start</a>
+                    <a href="#command-reference">CLI Reference</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Community</h4>
+                    <a href="https://github.com/jonathansudhakar1/cloudcat" target="_blank" rel="noopener">GitHub</a>
+                    <a href="https://github.com/jonathansudhakar1/cloudcat/issues" target="_blank" rel="noopener">Report Issue</a>
+                    <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">PyPI</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>MIT License. Built with care for data engineers everywhere.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/js/main.js"></script>
+</body>
+</html>

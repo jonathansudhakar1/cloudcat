@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Primary Meta Tags -->
+    <title>CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI</title>
+    <meta name="title" content="CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI">
+    <meta name="description" content="CloudCat is a powerful CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats with compression.">
+    <meta name="keywords" content="cloudcat, cloud storage cli, gcs preview, s3 preview, azure blob cli, parquet viewer, csv viewer, json viewer, avro reader, orc reader, cloud data tool, terminal tool, data engineering, data preview, cloud cli, aws s3 cat, gcs cat, azure cat">
+    <meta name="author" content="Jonathan Sudhakar">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="English">
+    <link rel="canonical" href="https://cloudcatcli.com/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://cloudcatcli.com/">
+    <meta property="og:title" content="CloudCat - The Swiss Army Knife for Cloud Storage Data">
+    <meta property="og:description" content="Preview and analyze data files in GCS, S3, and Azure from your terminal. No downloads required. Supports CSV, JSON, Parquet, Avro, ORC.">
+    <meta property="og:image" content="https://cloudcatcli.com/assets/logo.png">
+    <meta property="og:site_name" content="CloudCat">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://cloudcatcli.com/">
+    <meta name="twitter:title" content="CloudCat - Preview Cloud Storage Data from Terminal">
+    <meta name="twitter:description" content="Preview and analyze data files in GCS, S3, and Azure from your terminal. No downloads required.">
+    <meta name="twitter:image" content="https://cloudcatcli.com/assets/logo.png">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="/assets/logo.png">
+    <link rel="apple-touch-icon" href="/assets/logo.png">
+
+    <!-- Preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://api.github.com">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="/css/style.css">
+
+    <!-- JSON-LD Structured Data: SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "CloudCat",
+      "applicationCategory": "DeveloperApplication",
+      "applicationSubCategory": "Command Line Tool",
+      "operatingSystem": "Linux, macOS, Windows",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats.",
+      "softwareVersion": "0.1.4",
+      "author": {
+        "@type": "Person",
+        "name": "Jonathan Sudhakar"
+      },
+      "url": "https://cloudcatcli.com",
+      "downloadUrl": "https://pypi.org/project/cloudcat/",
+      "installUrl": "https://pypi.org/project/cloudcat/",
+      "codeRepository": "https://github.com/jonathansudhakar1/cloudcat",
+      "programmingLanguage": "Python",
+      "license": "https://opensource.org/licenses/MIT",
+      "featureList": [
+        "Google Cloud Storage support",
+        "Amazon S3 support",
+        "Azure Blob Storage support",
+        "CSV file preview",
+        "JSON file preview",
+        "Parquet file preview",
+        "Avro file preview",
+        "ORC file preview",
+        "Automatic compression handling",
+        "SQL-like filtering",
+        "Schema inspection",
+        "Multiple output formats"
+      ]
+    }
+    </script>
+
+    <!-- JSON-LD Structured Data: FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I preview a file in Google Cloud Storage without downloading?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Use CloudCat with the command: cloudcat -p gcs://bucket/file.csv to preview CSV, JSON, Parquet, Avro, or ORC files directly from GCS without downloading the entire file."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What file formats does CloudCat support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CloudCat supports CSV, JSON, JSON Lines, Parquet, Avro, ORC, and plain text files, with automatic decompression for gzip, zstd, lz4, snappy, and bz2 compressed files."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I install CloudCat?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Install CloudCat using pip: pip install 'cloudcat[all]' for full installation with all formats and compression support, or pip install cloudcat for standard installation."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can CloudCat preview S3 files?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, CloudCat supports Amazon S3. Use the command: cloudcat -p s3://bucket/path/file.parquet to preview files directly from S3 buckets."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does CloudCat support Azure Blob Storage?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, CloudCat supports Azure Blob Storage. Use az:// or azure:// URL schemes to preview files: cloudcat -p az://container/file.csv"
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- JSON-LD Structured Data: HowTo for Installation -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "How to Install CloudCat",
+      "description": "Install CloudCat CLI tool to preview cloud storage data from your terminal",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "name": "Install with pip",
+          "text": "Run: pip install 'cloudcat[all]' to install CloudCat with all features",
+          "url": "https://cloudcatcli.com/#installation"
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Configure cloud credentials",
+          "text": "Set up authentication for your cloud provider (GCS, S3, or Azure)",
+          "url": "https://cloudcatcli.com/#authentication"
+        },
+        {
+          "@type": "HowToStep",
+          "name": "Preview your data",
+          "text": "Run: cloudcat -p gcs://bucket/data.csv to preview files",
+          "url": "https://cloudcatcli.com/#quickstart"
+        }
+      ]
+    }
+    </script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <img src="/assets/logo.png" alt="CloudCat Logo" width="32" height="32">
+                <span>CloudCat</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features" class="nav-link">Features</a>
+<a href="#installation" class="nav-link">Installation</a>
+<a href="#quickstart" class="nav-link">Quick Start</a>
+<a href="#command-reference" class="nav-link">CLI Reference</a>
+<a href="#authentication" class="nav-link">Authentication</a>
+<a href="#use-cases" class="nav-link">Use Cases</a>
+<a href="#troubleshooting" class="nav-link">Troubleshooting</a>
+            </div>
+            <div class="nav-actions">
+                <a href="https://github.com/jonathansudhakar1/cloudcat" class="btn btn-star" target="_blank" rel="noopener noreferrer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    <span>Star</span>
+                    <span class="star-count" id="star-count"></span>
+                </a>
+                <a href="https://pypi.org/project/cloudcat/" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+                    Install
+                </a>
+            </div>
+            <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-container">
+            <img src="/assets/logo.png" alt="CloudCat - Cloud Storage Data Preview Tool" class="hero-logo" width="120" height="120">
+            <h1>CloudCat</h1>
+            <p class="hero-tagline">The Swiss Army knife for viewing cloud storage data from your terminal</p>
+
+            <div class="hero-badges">
+                <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/pypi/v/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="PyPI version">
+                </a>
+                <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/pypi/pyversions/cloudcat.svg?style=flat-square&logo=python&logoColor=white" alt="Python versions">
+                </a>
+                <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/pypi/dm/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="PyPI Downloads">
+                </a>
+                <a href="https://github.com/jonathansudhakar1/cloudcat/releases" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/github/downloads/jonathansudhakar1/cloudcat/total.svg?style=flat-square&logo=homebrew&logoColor=white&label=homebrew" alt="Homebrew Downloads">
+                </a>
+                <a href="https://github.com/jonathansudhakar1/cloudcat/blob/main/LICENSE" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/github/license/jonathansudhakar1/cloudcat.svg?style=flat-square" alt="License">
+                </a>
+            </div>
+
+            <div class="hero-install">
+                <div class="install-commands">
+                    <div class="install-command">
+                        <span class="install-label">macOS</span>
+                        <code>brew install jonathansudhakar1/cloudcat/cloudcat</code>
+                        <button class="copy-btn" data-copy="brew install jonathansudhakar1/cloudcat/cloudcat" aria-label="Copy Homebrew install command">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </button>
+                    </div>
+                    <div class="install-command">
+                        <span class="install-label">pip</span>
+                        <code>pip install 'cloudcat[all]'</code>
+                        <button class="copy-btn" data-copy="pip install 'cloudcat[all]'" aria-label="Copy pip install command">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hero-providers">
+                <span class="provider-badge gcs">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm0 3.6c4.6 0 8.4 3.8 8.4 8.4s-3.8 8.4-8.4 8.4S3.6 16.6 3.6 12 7.4 3.6 12 3.6z"/></svg>
+                    Google Cloud Storage
+                </span>
+                <span class="provider-badge s3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0L2 6v12l10 6 10-6V6L12 0zm0 2.3l7.5 4.5v9L12 20.3l-7.5-4.5v-9L12 2.3z"/></svg>
+                    Amazon S3
+                </span>
+                <span class="provider-badge azure">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0L2 6v12l10 6 10-6V6L12 0zm0 2.3l7.5 4.5v9L12 20.3l-7.5-4.5v-9L12 2.3z"/></svg>
+                    Azure Blob Storage
+                </span>
+            </div>
+
+            <div class="hero-demo">
+                <div class="terminal">
+                    <div class="terminal-header">
+                        <span class="terminal-dot red"></span>
+                        <span class="terminal-dot yellow"></span>
+                        <span class="terminal-dot green"></span>
+                        <span class="terminal-title">Terminal</span>
+                    </div>
+                    <div class="terminal-body">
+                        <pre><code><span class="prompt">$</span> cloudcat -p gcs://bucket/data.parquet -n 5
+
+<span class="info">Reading from: gcs://bucket/data.parquet</span>
+<span class="info">Format: parquet | Records: 1,234,567</span>
+
+<span class="header">Schema:</span>
+  id: int64
+  name: string
+  email: string
+  created_at: timestamp
+
+<span class="table">┌────────┬─────────────┬─────────────────────┬────────────────────┐
+│ id     │ name        │ email               │ created_at         │
+├────────┼─────────────┼─────────────────────┼────────────────────┤
+│ 1      │ Alice       │ alice@example.com   │ 2024-01-15 10:30   │
+│ 2      │ Bob         │ bob@example.com     │ 2024-01-15 11:45   │
+│ 3      │ Charlie     │ charlie@example.com │ 2024-01-16 09:00   │
+│ 4      │ Diana       │ diana@example.com   │ 2024-01-16 14:20   │
+│ 5      │ Eve         │ eve@example.com     │ 2024-01-17 08:15   │
+└────────┴─────────────┴─────────────────────┴────────────────────┘</span></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Table of Contents -->
+            <aside class="toc">
+                <h3>On This Page</h3>
+                <ul>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#installation">Installation</a></li>
+                    <li><a href="#quickstart">Quick Start</a></li>
+                    <li><a href="#command-reference">CLI Reference</a></li>
+                    <li><a href="#where-operators">WHERE Operators</a></li>
+                    <li><a href="#authentication">Authentication</a></li>
+                    <li><a href="#directory-operations">Directory Operations</a></li>
+                    <li><a href="#output-formats">Output Formats</a></li>
+                    <li><a href="#use-cases">Use Cases</a></li>
+                    <li><a href="#performance">Performance Tips</a></li>
+                    <li><a href="#troubleshooting">Troubleshooting</a></li>
+                    <li><a href="#contributing">Contributing</a></li>
+                    <li><a href="#roadmap">Roadmap</a></li>
+                </ul>
+            </aside>
+
+            <!-- Documentation Sections -->
+            <div class="content">
+                <section id="features" class="doc-section">
+<h2>Features</h2>
+<p>CloudCat is designed to make previewing cloud data effortless. Here&#39;s what it offers:</p>
+<h3>Cloud Storage Support</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Provider</th>
+<th>URL Scheme</th>
+<th>Status</th>
+</tr>
+</thead><tbody><tr>
+<td>Google Cloud Storage</td>
+<td><code>gcs://</code> or <code>gs://</code></td>
+<td>Supported</td>
+</tr>
+<tr>
+<td>Amazon S3</td>
+<td><code>s3://</code></td>
+<td>Supported</td>
+</tr>
+<tr>
+<td>Azure Blob Storage</td>
+<td><code>az://</code> or <code>azure://</code></td>
+<td>Supported</td>
+</tr>
+</tbody></table></div><h3>File Format Support</h3>
+<p>CloudCat automatically detects file formats from extensions and handles them appropriately:</p>
+<div class="table-wrapper"><table><thead><tr>
+<th>Format</th>
+<th>Read</th>
+<th>Auto-Detect</th>
+<th>Streaming</th>
+<th>Use Case</th>
+</tr>
+</thead><tbody><tr>
+<td>CSV</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>General data files</td>
+</tr>
+<tr>
+<td>JSON</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>API responses, configs</td>
+</tr>
+<tr>
+<td>JSON Lines</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Log files, streaming data</td>
+</tr>
+<tr>
+<td>Parquet</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Spark/analytics data</td>
+</tr>
+<tr>
+<td>Avro</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Kafka, data pipelines</td>
+</tr>
+<tr>
+<td>ORC</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Hive, Hadoop ecosystem</td>
+</tr>
+<tr>
+<td>Text</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Log files, plain text</td>
+</tr>
+<tr>
+<td>TSV</td>
+<td>Yes</td>
+<td>Via <code>--delimiter</code></td>
+<td>Yes</td>
+<td>Tab-separated data</td>
+</tr>
+</tbody></table></div><h3>Compression Support</h3>
+<p>CloudCat automatically detects and decompresses files based on extension:</p>
+<div class="table-wrapper"><table><thead><tr>
+<th>Format</th>
+<th>Extension</th>
+<th>Built-in</th>
+<th>Installation</th>
+</tr>
+</thead><tbody><tr>
+<td>Gzip</td>
+<td><code>.gz</code>, <code>.gzip</code></td>
+<td>Yes</td>
+<td>Included</td>
+</tr>
+<tr>
+<td>Bzip2</td>
+<td><code>.bz2</code></td>
+<td>Yes</td>
+<td>Included</td>
+</tr>
+<tr>
+<td>Zstandard</td>
+<td><code>.zst</code>, <code>.zstd</code></td>
+<td>Optional</td>
+<td><code>pip install cloudcat[zstd]</code></td>
+</tr>
+<tr>
+<td>LZ4</td>
+<td><code>.lz4</code></td>
+<td>Optional</td>
+<td><code>pip install cloudcat[lz4]</code></td>
+</tr>
+<tr>
+<td>Snappy</td>
+<td><code>.snappy</code></td>
+<td>Optional</td>
+<td><code>pip install cloudcat[snappy]</code></td>
+</tr>
+</tbody></table></div><h3>Output Formats</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Format</th>
+<th>Flag</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td>Table</td>
+<td><code>-o table</code></td>
+<td>Beautiful ASCII table with colored headers (default)</td>
+</tr>
+<tr>
+<td>JSON</td>
+<td><code>-o json</code></td>
+<td>Standard JSON Lines output (one record per line)</td>
+</tr>
+<tr>
+<td>Pretty JSON</td>
+<td><code>-o jsonp</code></td>
+<td>Syntax-highlighted, indented JSON with colors</td>
+</tr>
+<tr>
+<td>CSV</td>
+<td><code>-o csv</code></td>
+<td>Comma-separated values for further processing</td>
+</tr>
+</tbody></table></div><h3>Key Capabilities</h3>
+<ul>
+<li><strong>Schema Inspection</strong> - View column names and data types before previewing data</li>
+<li><strong>Column Selection</strong> - Display only the columns you need with <code>--columns</code></li>
+<li><strong>Row Limiting</strong> - Control how many rows to preview with <code>--num-rows</code></li>
+<li><strong>Row Offset</strong> - Skip first N rows for pagination with <code>--offset</code></li>
+<li><strong>WHERE Filtering</strong> - Filter rows with SQL-like conditions using <code>--where</code></li>
+<li><strong>Record Counting</strong> - Get total record counts (instant for Parquet via metadata)</li>
+<li><strong>Multi-File Reading</strong> - Combine data from multiple files in a directory</li>
+<li><strong>Custom Delimiters</strong> - Support for tab, pipe, semicolon, and other delimiters</li>
+<li><strong>Auto Decompression</strong> - Transparent handling of compressed files</li>
+<li><strong>Directory Intelligence</strong> - Automatically discovers data files in Spark/Hive outputs</li>
+</ul>
+
+</section>
+<section id="installation" class="doc-section">
+<h2>Installation</h2>
+<h3>Homebrew (macOS)</h3>
+<p>The easiest way to install on macOS — no Python required:</p>
+<div class="code-block"><pre><code class="hljs language-bash">brew install jonathansudhakar1/cloudcat/cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This installs a self-contained binary that includes Python and all dependencies.</p>
+<p>To upgrade:</p>
+<div class="code-block"><pre><code class="hljs language-bash">brew upgrade cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><blockquote>
+<p><strong>Note:</strong> On first run, macOS may block the app. Go to System Settings &gt; Privacy &amp; Security and click &quot;Allow&quot;, or run:</p>
+<div class="code-block"><pre><code class="hljs language-bash">xattr -d com.apple.quarantine $(<span class="hljs-built_in">which</span> cloudcat)</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div></blockquote>
+<h3>pip (All Platforms)</h3>
+<p>Install CloudCat with all features enabled:</p>
+<div class="code-block"><pre><code class="hljs language-bash">pip install <span class="hljs-string">&#x27;cloudcat[all]&#x27;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This includes support for all cloud providers (GCS, S3, Azure), all file formats (Parquet, Avro, ORC), and all compression types (zstd, lz4, snappy).</p>
+<h3>Standard pip Installation</h3>
+<p>For basic functionality with GCS, S3, and Azure support:</p>
+<div class="code-block"><pre><code class="hljs language-bash">pip install cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Includes CSV, JSON, and text format support with gzip and bz2 compression.</p>
+<h3>Install with Specific Features</h3>
+<p>Install only what you need:</p>
+<div class="table-wrapper"><table><thead><tr>
+<th>Extra</th>
+<th>Command</th>
+<th>Adds Support For</th>
+</tr>
+</thead><tbody><tr>
+<td><code>parquet</code></td>
+<td><code>pip install &#39;cloudcat[parquet]&#39;</code></td>
+<td>Apache Parquet files</td>
+</tr>
+<tr>
+<td><code>avro</code></td>
+<td><code>pip install &#39;cloudcat[avro]&#39;</code></td>
+<td>Apache Avro files</td>
+</tr>
+<tr>
+<td><code>orc</code></td>
+<td><code>pip install &#39;cloudcat[orc]&#39;</code></td>
+<td>Apache ORC files</td>
+</tr>
+<tr>
+<td><code>compression</code></td>
+<td><code>pip install &#39;cloudcat[compression]&#39;</code></td>
+<td>zstd, lz4, snappy</td>
+</tr>
+<tr>
+<td><code>zstd</code></td>
+<td><code>pip install &#39;cloudcat[zstd]&#39;</code></td>
+<td>Zstandard compression only</td>
+</tr>
+<tr>
+<td><code>lz4</code></td>
+<td><code>pip install &#39;cloudcat[lz4]&#39;</code></td>
+<td>LZ4 compression only</td>
+</tr>
+<tr>
+<td><code>snappy</code></td>
+<td><code>pip install &#39;cloudcat[snappy]&#39;</code></td>
+<td>Snappy compression only</td>
+</tr>
+</tbody></table></div><h3>Requirements</h3>
+<ul>
+<li><strong>Homebrew</strong>: macOS (Intel or Apple Silicon)</li>
+<li><strong>pip</strong>: Python 3.7 or higher</li>
+<li><strong>Cloud Credentials</strong>: Configured for your cloud provider (see <a href="#authentication">Authentication</a>)</li>
+</ul>
+<blockquote>
+<p><strong>Note</strong>: If using zsh (default on macOS), quotes around extras are required to prevent shell interpretation of brackets.</p>
+</blockquote>
+<h3>Upgrading</h3>
+<p>Upgrade to the latest version:</p>
+<div class="code-block"><pre><code class="hljs language-bash">pip install --upgrade cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Or with all extras:</p>
+<div class="code-block"><pre><code class="hljs language-bash">pip install --upgrade <span class="hljs-string">&#x27;cloudcat[all]&#x27;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Verifying Installation</h3>
+<p>Check that CloudCat is installed correctly:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat --<span class="hljs-built_in">help</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>You should see the help output with all available options.</p>
+
+</section>
+<section id="quickstart" class="doc-section">
+<h2>Quick Start</h2>
+<p>Get started with CloudCat in seconds. Here are the most common operations:</p>
+<h3>Preview a CSV File</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># From Google Cloud Storage</span>
+cloudcat -p gcs://my-bucket/data.csv
+
+<span class="hljs-comment"># From Amazon S3</span>
+cloudcat -p s3://my-bucket/data.csv
+
+<span class="hljs-comment"># From Azure Blob Storage</span>
+cloudcat -p az://my-container/data.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Preview Parquet Files</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Preview first 10 rows (default)</span>
+cloudcat -p s3://my-bucket/analytics/events.parquet
+
+<span class="hljs-comment"># Preview 50 rows</span>
+cloudcat -p gcs://my-bucket/data.parquet -n 50</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Preview JSON Data</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Standard JSON</span>
+cloudcat -p s3://my-bucket/config.json
+
+<span class="hljs-comment"># JSON Lines (newline-delimited JSON)</span>
+cloudcat -p gcs://my-bucket/events.jsonl
+
+<span class="hljs-comment"># With pretty formatting</span>
+cloudcat -p az://my-container/logs.json -o jsonp</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Select Specific Columns</h3>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/users.json -c <span class="hljs-built_in">id</span>,name,email</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Filter Rows</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Exact match</span>
+cloudcat -p s3://bucket/users.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;status=active&quot;</span>
+
+<span class="hljs-comment"># Numeric comparison</span>
+cloudcat -p gcs://bucket/events.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;age&gt;30&quot;</span>
+
+<span class="hljs-comment"># String contains</span>
+cloudcat -p s3://bucket/logs.csv --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;message contains error&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>View Schema Only</h3>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/events.parquet -s schema_only</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Read Compressed Files</h3>
+<p>CloudCat automatically decompresses files:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Gzip</span>
+cloudcat -p gcs://bucket/data.csv.gz
+
+<span class="hljs-comment"># Zstandard</span>
+cloudcat -p s3://bucket/events.parquet.zst
+
+<span class="hljs-comment"># LZ4</span>
+cloudcat -p s3://bucket/data.csv.lz4</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Read from Spark Output Directory</h3>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://my-bucket/spark-output/ -i parquet</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>CloudCat automatically discovers data files and ignores metadata files like <code>_SUCCESS</code>.</p>
+<h3>Pagination</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Skip first 100 rows, show next 10</span>
+cloudcat -p gcs://bucket/data.csv --offset 100 -n 10</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Convert and Export</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Convert Parquet to CSV</span>
+cloudcat -p gcs://bucket/data.parquet -o csv -n 0 &gt; data.csv
+
+<span class="hljs-comment"># Export specific columns</span>
+cloudcat -p s3://bucket/users.parquet -c email,created_at -o csv -n 0 &gt; emails.csv
+
+<span class="hljs-comment"># Pipe to jq for JSON processing</span>
+cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27;.status&#x27;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+</section>
+<section id="command-reference" class="doc-section">
+<h2>Command Reference</h2>
+<p>Complete reference for all CloudCat command-line options.</p>
+<h3>Usage</h3>
+<div class="code-block"><pre><code class="hljs language-plaintext">cloudcat [OPTIONS]</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Required Options</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>-p, --path TEXT</code></td>
+<td>Cloud storage path (required). Format: <code>gcs://bucket/path</code>, <code>s3://bucket/path</code>, or <code>az://container/path</code></td>
+</tr>
+</tbody></table></div><h3>Output &amp; Format Options</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>-o, --output-format TEXT</code></td>
+<td><code>table</code></td>
+<td>Output format: <code>table</code>, <code>json</code>, <code>jsonp</code>, <code>csv</code></td>
+</tr>
+<tr>
+<td><code>-i, --input-format TEXT</code></td>
+<td>auto-detect</td>
+<td>Input format: <code>csv</code>, <code>json</code>, <code>parquet</code>, <code>avro</code>, <code>orc</code>, <code>text</code></td>
+</tr>
+</tbody></table></div><h3>Data Selection Options</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>-c, --columns TEXT</code></td>
+<td>all</td>
+<td>Comma-separated list of columns to display</td>
+</tr>
+<tr>
+<td><code>-n, --num-rows INTEGER</code></td>
+<td>10</td>
+<td>Number of rows to display (0 for all rows)</td>
+</tr>
+<tr>
+<td><code>--offset INTEGER</code></td>
+<td>0</td>
+<td>Skip first N rows</td>
+</tr>
+</tbody></table></div><h3>Filtering &amp; Schema Options</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>-w, --where TEXT</code></td>
+<td>none</td>
+<td>Filter rows with SQL-like conditions</td>
+</tr>
+<tr>
+<td><code>-s, --schema TEXT</code></td>
+<td><code>show</code></td>
+<td>Schema display: <code>show</code>, <code>dont_show</code>, <code>schema_only</code></td>
+</tr>
+<tr>
+<td><code>--no-count</code></td>
+<td>false</td>
+<td>Disable automatic record counting</td>
+</tr>
+</tbody></table></div><h3>Directory Handling Options</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>-m, --multi-file-mode TEXT</code></td>
+<td><code>auto</code></td>
+<td>Directory handling: <code>auto</code>, <code>first</code>, <code>all</code></td>
+</tr>
+<tr>
+<td><code>--max-size-mb INTEGER</code></td>
+<td>25</td>
+<td>Max data size for multi-file mode in MB</td>
+</tr>
+</tbody></table></div><h3>CSV Options</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>-d, --delimiter TEXT</code></td>
+<td>comma</td>
+<td>CSV delimiter (use <code>\t</code> for tab)</td>
+</tr>
+</tbody></table></div><h3>Cloud Provider Authentication</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>--profile TEXT</code></td>
+<td>AWS profile name (for S3 access)</td>
+</tr>
+<tr>
+<td><code>--project TEXT</code></td>
+<td>GCP project ID (for GCS access)</td>
+</tr>
+<tr>
+<td><code>--credentials TEXT</code></td>
+<td>Path to GCP service account JSON file</td>
+</tr>
+<tr>
+<td><code>--account TEXT</code></td>
+<td>Azure storage account name</td>
+</tr>
+</tbody></table></div><h3>General Options</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>--help</code></td>
+<td>Show help message and exit</td>
+</tr>
+</tbody></table></div><h3>Examples</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Basic usage</span>
+cloudcat -p gcs://bucket/data.csv
+
+<span class="hljs-comment"># Select columns and limit rows</span>
+cloudcat -p s3://bucket/users.parquet -c <span class="hljs-built_in">id</span>,name,email -n 20
+
+<span class="hljs-comment"># Filter with WHERE clause</span>
+cloudcat -p gcs://bucket/events.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;status=active&quot;</span>
+
+<span class="hljs-comment"># Output as JSON</span>
+cloudcat -p az://container/data.csv -o json
+
+<span class="hljs-comment"># Read from Spark output directory</span>
+cloudcat -p s3://bucket/spark-output/ -i parquet -m all
+
+<span class="hljs-comment"># Use custom delimiter for TSV</span>
+cloudcat -p gcs://bucket/data.tsv -d <span class="hljs-string">&quot;\t&quot;</span>
+
+<span class="hljs-comment"># Pagination</span>
+cloudcat -p s3://bucket/large.csv --offset 100 -n 10
+
+<span class="hljs-comment"># Schema only</span>
+cloudcat -p gcs://bucket/events.parquet -s schema_only
+
+<span class="hljs-comment"># With AWS profile</span>
+cloudcat -p s3://bucket/data.csv --profile production
+
+<span class="hljs-comment"># With GCP credentials</span>
+cloudcat -p gcs://bucket/data.csv --credentials /path/to/key.json</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+</section>
+<section id="where-operators" class="doc-section">
+<h2>WHERE Operators</h2>
+<p>CloudCat supports SQL-like filtering with the <code>--where</code> option. Filter your data before it&#39;s displayed to focus on exactly what you need.</p>
+<h3>Supported Operators</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Operator</th>
+<th>Example</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>=</code></td>
+<td><code>status=active</code></td>
+<td>Exact match</td>
+</tr>
+<tr>
+<td><code>!=</code></td>
+<td><code>type!=deleted</code></td>
+<td>Not equal</td>
+</tr>
+<tr>
+<td><code>&gt;</code></td>
+<td><code>age&gt;30</code></td>
+<td>Greater than</td>
+</tr>
+<tr>
+<td><code>&lt;</code></td>
+<td><code>price&lt;100</code></td>
+<td>Less than</td>
+</tr>
+<tr>
+<td><code>&gt;=</code></td>
+<td><code>count&gt;=10</code></td>
+<td>Greater than or equal</td>
+</tr>
+<tr>
+<td><code>&lt;=</code></td>
+<td><code>score&lt;=50</code></td>
+<td>Less than or equal</td>
+</tr>
+<tr>
+<td><code>contains</code></td>
+<td><code>name contains john</code></td>
+<td>Case-insensitive substring match</td>
+</tr>
+<tr>
+<td><code>startswith</code></td>
+<td><code>email startswith admin</code></td>
+<td>String prefix match</td>
+</tr>
+<tr>
+<td><code>endswith</code></td>
+<td><code>file endswith .csv</code></td>
+<td>String suffix match</td>
+</tr>
+</tbody></table></div><h3>Usage Examples</h3>
+<h4>Exact Match</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Filter by status</span>
+cloudcat -p s3://bucket/users.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;status=active&quot;</span>
+
+<span class="hljs-comment"># Filter by category</span>
+cloudcat -p gcs://bucket/products.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;category=electronics&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Numeric Comparisons</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Greater than</span>
+cloudcat -p s3://bucket/users.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;age&gt;30&quot;</span>
+
+<span class="hljs-comment"># Less than</span>
+cloudcat -p gcs://bucket/orders.csv --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;price&lt;100&quot;</span>
+
+<span class="hljs-comment"># Greater than or equal</span>
+cloudcat -p s3://bucket/events.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;count&gt;=10&quot;</span>
+
+<span class="hljs-comment"># Less than or equal</span>
+cloudcat -p gcs://bucket/scores.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;score&lt;=50&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>String Matching</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Contains (case-insensitive)</span>
+cloudcat -p s3://bucket/logs.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;message contains error&quot;</span>
+
+<span class="hljs-comment"># Starts with</span>
+cloudcat -p gcs://bucket/users.csv --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;email startswith admin&quot;</span>
+
+<span class="hljs-comment"># Ends with</span>
+cloudcat -p s3://bucket/files.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;filename endswith .csv&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Not Equal</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Exclude deleted records</span>
+cloudcat -p gcs://bucket/records.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;status!=deleted&quot;</span>
+
+<span class="hljs-comment"># Exclude specific type</span>
+cloudcat -p s3://bucket/events.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;type!=test&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Combining with Other Options</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Filter and select columns</span>
+cloudcat -p s3://bucket/users.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;status=active&quot;</span> -c <span class="hljs-built_in">id</span>,name,email
+
+<span class="hljs-comment"># Filter and limit rows</span>
+cloudcat -p gcs://bucket/events.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;type=error&quot;</span> -n 50
+
+<span class="hljs-comment"># Filter with pagination</span>
+cloudcat -p s3://bucket/logs.csv --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;level=ERROR&quot;</span> --offset 100 -n 20
+
+<span class="hljs-comment"># Filter and export</span>
+cloudcat -p gcs://bucket/users.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;country=US&quot;</span> -o csv -n 0 &gt; us_users.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Tips</h3>
+<ul>
+<li>String values don&#39;t need quotes in the WHERE clause</li>
+<li>Comparisons are type-aware (numeric columns compare numerically)</li>
+<li>The <code>contains</code>, <code>startswith</code>, and <code>endswith</code> operators are case-insensitive</li>
+<li>For best performance, filter on columns that exist in your data</li>
+</ul>
+
+</section>
+<section id="authentication" class="doc-section">
+<h2>Authentication</h2>
+<p>CloudCat uses standard authentication methods for each cloud provider. Configure your credentials once and CloudCat will use them automatically.</p>
+<h3>Google Cloud Storage (GCS)</h3>
+<p>CloudCat uses <a href="https://cloud.google.com/docs/authentication/application-default-credentials">Application Default Credentials (ADC)</a> for GCS authentication.</p>
+<h4>Option 1: User Credentials (Development)</h4>
+<p>Best for local development:</p>
+<div class="code-block"><pre><code class="hljs language-bash">gcloud auth application-default login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This opens a browser for Google account authentication.</p>
+<h4>Option 2: Service Account (Environment Variable)</h4>
+<p>Set the path to your service account JSON file:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-built_in">export</span> GOOGLE_APPLICATION_CREDENTIALS=<span class="hljs-string">&quot;/path/to/service-account.json&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Then use CloudCat normally:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/data.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 3: Service Account (CLI Option)</h4>
+<p>Pass the credentials file directly:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/data.csv --credentials /path/to/service-account.json</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 4: Specify GCP Project</h4>
+<p>If your credentials have access to multiple projects:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/data.csv --project my-gcp-project</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Amazon S3</h3>
+<p>CloudCat uses the standard <a href="https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html">AWS credential chain</a>.</p>
+<h4>Option 1: Environment Variables</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=<span class="hljs-string">&quot;your-access-key&quot;</span>
+<span class="hljs-built_in">export</span> AWS_SECRET_ACCESS_KEY=<span class="hljs-string">&quot;your-secret-key&quot;</span>
+<span class="hljs-built_in">export</span> AWS_DEFAULT_REGION=<span class="hljs-string">&quot;us-east-1&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 2: AWS Credentials File</h4>
+<p>Configure credentials using the AWS CLI:</p>
+<div class="code-block"><pre><code class="hljs language-bash">aws configure</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This creates <code>~/.aws/credentials</code> with your access keys.</p>
+<h4>Option 3: Named Profile</h4>
+<p>Use a specific AWS profile:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/data.csv --profile production</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Profiles are defined in <code>~/.aws/credentials</code>:</p>
+<div class="code-block"><pre><code class="hljs language-ini"><span class="hljs-section">[production]</span>
+<span class="hljs-attr">aws_access_key_id</span> = AKIA...
+<span class="hljs-attr">aws_secret_access_key</span> = ...
+<span class="hljs-attr">region</span> = us-west-<span class="hljs-number">2</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 4: IAM Role (EC2/ECS/Lambda)</h4>
+<p>When running on AWS infrastructure (EC2, ECS, Lambda), CloudCat automatically uses the attached IAM role. No configuration needed.</p>
+<h3>Azure Blob Storage</h3>
+<p>CloudCat supports multiple authentication methods for Azure.</p>
+<h4>Option 1: Connection String (Simplest)</h4>
+<p>Set the full connection string:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-built_in">export</span> AZURE_STORAGE_CONNECTION_STRING=<span class="hljs-string">&quot;DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 2: Azure AD Authentication</h4>
+<p>Use Azure CLI login with account URL:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Set the account URL</span>
+<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCOUNT_URL=<span class="hljs-string">&quot;https://youraccount.blob.core.windows.net&quot;</span>
+
+<span class="hljs-comment"># Login with Azure CLI</span>
+az login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>CloudCat will use DefaultAzureCredential to authenticate.</p>
+<h4>Option 3: Storage Account (CLI Option)</h4>
+<p>Specify the storage account directly:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p az://container/data.csv --account mystorageaccount</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This requires either a connection string or Azure AD authentication to be configured.</p>
+<h3>Path Formats</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Provider</th>
+<th>URL Format</th>
+<th>Example</th>
+</tr>
+</thead><tbody><tr>
+<td>GCS</td>
+<td><code>gcs://bucket/path</code> or <code>gs://bucket/path</code></td>
+<td><code>gcs://my-bucket/data/file.csv</code></td>
+</tr>
+<tr>
+<td>S3</td>
+<td><code>s3://bucket/path</code></td>
+<td><code>s3://my-bucket/data/file.parquet</code></td>
+</tr>
+<tr>
+<td>Azure</td>
+<td><code>az://container/path</code> or <code>azure://container/path</code></td>
+<td><code>az://my-container/data/file.json</code></td>
+</tr>
+</tbody></table></div><h3>Troubleshooting Authentication</h3>
+<p><strong>GCS: &quot;Could not automatically determine credentials&quot;</strong></p>
+<div class="code-block"><pre><code class="hljs language-bash">gcloud auth application-default login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p><strong>S3: &quot;Unable to locate credentials&quot;</strong></p>
+<div class="code-block"><pre><code class="hljs language-bash">aws configure
+<span class="hljs-comment"># Or set environment variables</span>
+<span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=<span class="hljs-string">&quot;...&quot;</span>
+<span class="hljs-built_in">export</span> AWS_SECRET_ACCESS_KEY=<span class="hljs-string">&quot;...&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p><strong>Azure: &quot;Azure credentials not found&quot;</strong></p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Option 1: Set connection string</span>
+<span class="hljs-built_in">export</span> AZURE_STORAGE_CONNECTION_STRING=<span class="hljs-string">&quot;...&quot;</span>
+
+<span class="hljs-comment"># Option 2: Use Azure CLI</span>
+<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCOUNT_URL=<span class="hljs-string">&quot;https://account.blob.core.windows.net&quot;</span>
+az login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+</section>
+<section id="directory-operations" class="doc-section">
+<h2>Directory Operations</h2>
+<p>CloudCat intelligently handles directories containing multiple data files, common with Spark, Hive, and distributed processing outputs.</p>
+<h3>Multi-File Mode</h3>
+<p>Control how CloudCat handles directories with the <code>-m, --multi-file-mode</code> option:</p>
+<div class="table-wrapper"><table><thead><tr>
+<th>Mode</th>
+<th>Description</th>
+</tr>
+</thead><tbody><tr>
+<td><code>auto</code></td>
+<td>Smart selection based on directory contents (default)</td>
+</tr>
+<tr>
+<td><code>first</code></td>
+<td>Read only the first data file found</td>
+</tr>
+<tr>
+<td><code>all</code></td>
+<td>Combine data from all files in the directory</td>
+</tr>
+</tbody></table></div><h3>Auto Mode (Default)</h3>
+<p>In auto mode, CloudCat analyzes the directory and makes smart decisions:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/spark-output/</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><ul>
+<li>Scans directory for data files</li>
+<li>Ignores metadata files (<code>_SUCCESS</code>, <code>_metadata</code>, <code>.crc</code>, etc.)</li>
+<li>Selects appropriate files based on format</li>
+<li>Reports which files were selected</li>
+</ul>
+<h3>First File Mode</h3>
+<p>Read only the first file for quick sampling:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/large-output/ -m first</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
+<ul>
+<li>Quick data validation</li>
+<li>Large directories with many files</li>
+<li>When you only need a sample</li>
+</ul>
+<h3>All Files Mode</h3>
+<p>Combine data from multiple files:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/daily-logs/ -m all</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
+<ul>
+<li>Aggregating partitioned data</li>
+<li>Reading complete datasets</li>
+<li>Directories with related files</li>
+</ul>
+<h3>Size Limits</h3>
+<p>Control maximum data size when reading multiple files:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Read up to 100MB of data</span>
+cloudcat -p gcs://bucket/events/ -m all --max-size-mb 100</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Default is 25MB to prevent accidentally loading huge datasets.</p>
+<h3>Automatic File Filtering</h3>
+<p>CloudCat automatically ignores common metadata files:</p>
+<ul>
+<li><code>_SUCCESS</code> - Spark/Hadoop success markers</li>
+<li><code>_metadata</code> - Parquet metadata files</li>
+<li><code>_common_metadata</code> - Parquet common metadata</li>
+<li><code>.crc</code> files - Checksum files</li>
+<li><code>.committed</code> - Transaction markers</li>
+<li><code>.pending</code> - Pending transaction files</li>
+<li><code>_temporary</code> directories - Temporary files</li>
+</ul>
+<h3>Examples</h3>
+<h4>Spark Output Directory</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Typical Spark output structure:</span>
+<span class="hljs-comment"># s3://bucket/output/</span>
+<span class="hljs-comment">#   _SUCCESS</span>
+<span class="hljs-comment">#   part-00000-abc.parquet</span>
+<span class="hljs-comment">#   part-00001-def.parquet</span>
+
+cloudcat -p s3://bucket/output/ -i parquet
+<span class="hljs-comment"># Automatically reads part files, ignores _SUCCESS</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Hive Partitioned Data</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Partitioned structure:</span>
+<span class="hljs-comment"># gcs://bucket/events/</span>
+<span class="hljs-comment">#   year=2024/month=01/data.parquet</span>
+<span class="hljs-comment">#   year=2024/month=02/data.parquet</span>
+
+cloudcat -p gcs://bucket/events/ -m all -i parquet</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Daily Log Files</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Log directory:</span>
+<span class="hljs-comment"># s3://bucket/logs/</span>
+<span class="hljs-comment">#   2024-01-15.json</span>
+<span class="hljs-comment">#   2024-01-16.json</span>
+<span class="hljs-comment">#   2024-01-17.json</span>
+
+cloudcat -p s3://bucket/logs/ -m all -n 100</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Large Directory Sampling</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Quick preview of first file only</span>
+cloudcat -p gcs://bucket/huge-dataset/ -m first -n 20</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Format Detection in Directories</h3>
+<p>When reading from a directory, you may want to specify the format:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Explicitly set format for directory</span>
+cloudcat -p s3://bucket/output/ -i parquet
+
+<span class="hljs-comment"># Auto-detect from first matching file</span>
+cloudcat -p gcs://bucket/data/</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>CloudCat examines file extensions to determine format when not specified.</p>
+<h3>Tips</h3>
+<ul>
+<li>Use <code>-m first</code> for quick validation of large directories</li>
+<li>Use <code>--max-size-mb</code> to control memory usage with <code>-m all</code></li>
+<li>Specify <code>-i</code> format when directory contains mixed file types</li>
+<li>CloudCat preserves column order across multiple files</li>
+</ul>
+
+</section>
+<section id="output-formats" class="doc-section">
+<h2>Output Formats</h2>
+<p>CloudCat supports multiple output formats to suit different workflows. Use the <code>-o, --output-format</code> option to choose.</p>
+<h3>Table (Default)</h3>
+<p>Beautiful ASCII tables with colored headers, perfect for terminal viewing:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/data.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Output:</p>
+<div class="code-block"><pre><code class="hljs language-plaintext">┌────────┬─────────────┬─────────────────────┬────────────────────┐
+│ id     │ name        │ email               │ created_at         │
+├────────┼─────────────┼─────────────────────┼────────────────────┤
+│ 1      │ Alice       │ alice@example.com   │ 2024-01-15 10:30   │
+│ 2      │ Bob         │ bob@example.com     │ 2024-01-15 11:45   │
+│ 3      │ Charlie     │ charlie@example.com │ 2024-01-16 09:00   │
+└────────┴─────────────┴─────────────────────┴────────────────────┘</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
+<ul>
+<li>Interactive terminal use</li>
+<li>Quick data inspection</li>
+<li>Readable output</li>
+</ul>
+<h3>JSON Lines</h3>
+<p>Standard JSON Lines format (one JSON object per line):</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/data.parquet -o json</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Output:</p>
+<div class="code-block"><pre><code class="hljs language-json"><span class="hljs-punctuation">{</span><span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Alice&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;alice@example.com&quot;</span><span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">{</span><span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">2</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Bob&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;bob@example.com&quot;</span><span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">{</span><span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">3</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Charlie&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;email&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;charlie@example.com&quot;</span><span class="hljs-punctuation">}</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
+<ul>
+<li>Piping to <code>jq</code> for processing</li>
+<li>Integration with other tools</li>
+<li>Machine-readable output</li>
+</ul>
+<h4>Processing with jq</h4>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Filter by field</span>
+cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27;select(.status == &quot;error&quot;)&#x27;</span>
+
+<span class="hljs-comment"># Extract specific fields</span>
+cloudcat -p gcs://bucket/users.parquet -o json | jq <span class="hljs-string">&#x27;.email&#x27;</span>
+
+<span class="hljs-comment"># Count by field</span>
+cloudcat -p s3://bucket/logs.json -o json -n 0 | jq -s <span class="hljs-string">&#x27;group_by(.level) | map({level: .[0].level, count: length})&#x27;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Pretty JSON</h3>
+<p>Syntax-highlighted, indented JSON for human readability:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/config.json -o jsonp</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Output:</p>
+<div class="code-block"><pre><code class="hljs language-json"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Alice&quot;</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">&quot;metadata&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;created&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2024-01-15&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-string">&quot;active&quot;</span><span class="hljs-punctuation">]</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
+<ul>
+<li>Viewing nested JSON structures</li>
+<li>Debugging API responses</li>
+<li>Human-readable inspection</li>
+</ul>
+<h3>CSV</h3>
+<p>Comma-separated values for export and further processing:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/data.parquet -o csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Output:</p>
+<div class="code-block"><pre><code class="hljs language-plaintext">id,name,email,created_at
+1,Alice,alice@example.com,2024-01-15 10:30
+2,Bob,bob@example.com,2024-01-15 11:45
+3,Charlie,charlie@example.com,2024-01-16 09:00</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
+<ul>
+<li>Exporting to spreadsheets</li>
+<li>Further data processing</li>
+<li>Format conversion</li>
+</ul>
+<h3>Export Examples</h3>
+<h4>Convert Parquet to CSV</h4>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/data.parquet -o csv -n 0 &gt; data.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Export Specific Columns</h4>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/users.parquet -c email,created_at -o csv -n 0 &gt; emails.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Export Filtered Data</h4>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/events.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;status=error&quot;</span> -o csv -n 0 &gt; errors.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Convert JSON to CSV</h4>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/api-response.json -o csv &gt; response.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Combining Output Formats with Other Options</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Table with column selection</span>
+cloudcat -p gcs://bucket/data.csv -c <span class="hljs-built_in">id</span>,name,email -o table
+
+<span class="hljs-comment"># JSON with filtering</span>
+cloudcat -p s3://bucket/users.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;active=true&quot;</span> -o json
+
+<span class="hljs-comment"># CSV with row limit</span>
+cloudcat -p gcs://bucket/events.json -o csv -n 100
+
+<span class="hljs-comment"># Pretty JSON with schema</span>
+cloudcat -p s3://bucket/config.json -o jsonp -s show</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Tips</h3>
+<ul>
+<li>Use <code>-n 0</code> to output all rows when exporting</li>
+<li>Use <code>table</code> for interactive inspection, <code>json</code> for piping, <code>csv</code> for export</li>
+<li>Redirect output to a file with <code>&gt; filename</code> for large exports</li>
+<li>The <code>jsonp</code> format includes colors; redirect to file loses color codes</li>
+</ul>
+
+</section>
+<section id="use-cases" class="doc-section">
+<h2>Use Cases</h2>
+<p>Real-world scenarios where CloudCat shines.</p>
+<h3>Debugging Spark Jobs</h3>
+<p>Quickly validate Spark job output without downloading files:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Check output of a Spark job</span>
+cloudcat -p gcs://data-lake/jobs/daily-etl/output/ -i parquet -n 20
+
+<span class="hljs-comment"># Verify schema matches expectations</span>
+cloudcat -p s3://analytics/spark-output/ -s schema_only
+
+<span class="hljs-comment"># Sample data from large output</span>
+cloudcat -p gcs://bucket/aggregations/ -m first -n 50</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Log Analysis</h3>
+<p>Preview and filter log files stored in cloud storage:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Preview recent logs</span>
+cloudcat -p gcs://logs/app/2024-01-15/ -m all -n 50
+
+<span class="hljs-comment"># Filter for errors</span>
+cloudcat -p s3://logs/api/ --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;level=ERROR&quot;</span> -n 100
+
+<span class="hljs-comment"># Search log messages</span>
+cloudcat -p gcs://logs/app/ --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;message contains timeout&quot;</span>
+
+<span class="hljs-comment"># Export errors for analysis</span>
+cloudcat -p s3://logs/errors/ -o json -n 0 | jq <span class="hljs-string">&#x27;select(.status &gt;= 500)&#x27;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Data Validation</h3>
+<p>Verify data quality and structure before processing:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Quick sanity check on data export</span>
+cloudcat -p gcs://exports/daily/users.csv -s show
+
+<span class="hljs-comment"># Verify record count</span>
+cloudcat -p s3://warehouse/transactions.parquet
+
+<span class="hljs-comment"># Check for null values (preview and inspect)</span>
+cloudcat -p gcs://data/customers.parquet -n 100
+
+<span class="hljs-comment"># Validate schema before ETL</span>
+cloudcat -p s3://input/raw-data.json -s schema_only</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Format Conversion</h3>
+<p>Convert between data formats using CloudCat:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Convert Parquet to CSV</span>
+cloudcat -p gcs://bucket/data.parquet -o csv -n 0 &gt; data.csv
+
+<span class="hljs-comment"># Convert JSON to CSV for spreadsheet import</span>
+cloudcat -p s3://api-dumps/response.json -o csv &gt; data.csv
+
+<span class="hljs-comment"># Convert tab-separated to comma-separated</span>
+cloudcat -p gcs://imports/data.tsv -d <span class="hljs-string">&quot;\t&quot;</span> -o csv &gt; converted.csv
+
+<span class="hljs-comment"># Export Avro as JSON Lines</span>
+cloudcat -p s3://kafka/events.avro -o json -n 0 &gt; events.jsonl</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Data Exploration</h3>
+<p>Understand unfamiliar datasets quickly:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># View schema of unknown file</span>
+cloudcat -p s3://vendor-data/export.parquet -s schema_only
+
+<span class="hljs-comment"># Preview first few rows</span>
+cloudcat -p gcs://bucket/new-data.csv -n 5
+
+<span class="hljs-comment"># Check all columns</span>
+cloudcat -p s3://bucket/wide-table.parquet -n 3</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Data Sampling</h3>
+<p>Get representative samples from large datasets:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Random-ish sample (use offset)</span>
+cloudcat -p gcs://bucket/huge-table.parquet --offset 10000 -n 100
+
+<span class="hljs-comment"># Sample from each partition</span>
+cloudcat -p s3://bucket/year=2024/month=01/ -m first -n 50
+cloudcat -p s3://bucket/year=2024/month=02/ -m first -n 50
+
+<span class="hljs-comment"># Quick peek at different columns</span>
+cloudcat -p gcs://bucket/data.parquet -c user_id,event_type -n 20
+cloudcat -p gcs://bucket/data.parquet -c timestamp,value -n 20</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Pipeline Debugging</h3>
+<p>Debug data pipeline issues:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Check intermediate outputs</span>
+cloudcat -p s3://pipeline/stage1-output/ -i parquet -n 10
+cloudcat -p s3://pipeline/stage2-output/ -i parquet -n 10
+
+<span class="hljs-comment"># Compare schemas between stages</span>
+cloudcat -p gcs://etl/raw/ -s schema_only
+cloudcat -p gcs://etl/transformed/ -s schema_only
+
+<span class="hljs-comment"># Find records with specific IDs</span>
+cloudcat -p s3://data/users.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;user_id=12345&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Kafka/Event Streaming</h3>
+<p>Preview data from Kafka exports:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Read Avro files from Kafka Connect</span>
+cloudcat -p s3://kafka-exports/topic-name/ -i avro
+
+<span class="hljs-comment"># Filter events by type</span>
+cloudcat -p gcs://events/user-actions/ --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;event_type=purchase&quot;</span>
+
+<span class="hljs-comment"># Preview JSON events</span>
+cloudcat -p s3://kinesis/events.jsonl -o jsonp</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Multi-Cloud Data Access</h3>
+<p>Work with data across multiple cloud providers:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Compare data between clouds</span>
+cloudcat -p gcs://source/data.parquet -c <span class="hljs-built_in">id</span>,value -n 100
+cloudcat -p s3://destination/data.parquet -c <span class="hljs-built_in">id</span>,value -n 100
+
+<span class="hljs-comment"># Verify replication</span>
+cloudcat -p gcs://primary/users.csv
+cloudcat -p az://backup/users.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Integration with Other Tools</h3>
+<p>Combine CloudCat with other command-line tools:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Count records with wc</span>
+cloudcat -p s3://bucket/data.csv -o csv -n 0 | <span class="hljs-built_in">wc</span> -l
+
+<span class="hljs-comment"># Filter with grep</span>
+cloudcat -p gcs://logs/app.json -o json | grep <span class="hljs-string">&quot;ERROR&quot;</span>
+
+<span class="hljs-comment"># Process with awk</span>
+cloudcat -p s3://data/report.csv -o csv | awk -F<span class="hljs-string">&#x27;,&#x27;</span> <span class="hljs-string">&#x27;{sum+=$3} END {print sum}&#x27;</span>
+
+<span class="hljs-comment"># Sort and unique</span>
+cloudcat -p gcs://data/users.csv -c country -o csv -n 0 | <span class="hljs-built_in">sort</span> | <span class="hljs-built_in">uniq</span> -c</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+</section>
+<section id="performance" class="doc-section">
+<h2>Performance Tips</h2>
+<p>Optimize CloudCat for faster performance and lower data transfer costs.</p>
+<h3>1. Use --no-count for Large Files</h3>
+<p>By default, CloudCat counts total records in the file. For large files, skip this:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/huge-file.csv --no-count</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This is especially helpful for CSV and JSON files where counting requires scanning the entire file.</p>
+<h3>2. Prefer Parquet Format</h3>
+<p>Parquet files offer the best performance with CloudCat:</p>
+<ul>
+<li><strong>Instant record counts</strong> from metadata (no file scan needed)</li>
+<li><strong>Column pruning</strong> when using <code>--columns</code> (only reads selected columns)</li>
+<li><strong>Better compression</strong> means less data transfer</li>
+</ul>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Record count is instant for Parquet</span>
+cloudcat -p gcs://bucket/data.parquet
+
+<span class="hljs-comment"># Column selection reads only needed columns</span>
+cloudcat -p s3://bucket/wide-table.parquet -c <span class="hljs-built_in">id</span>,name,email</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>3. Limit Rows with --num-rows</h3>
+<p>Reduce data transfer by limiting rows:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Preview only 20 rows instead of default 10</span>
+cloudcat -p gcs://bucket/data.csv -n 20
+
+<span class="hljs-comment"># Don&#x27;t use -n 0 (all rows) unless you need everything</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>4. Select Only Needed Columns</h3>
+<p>With columnar formats (Parquet, ORC), column selection reduces data transfer:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Reads only 3 columns instead of all 50</span>
+cloudcat -p s3://bucket/wide-table.parquet -c user_id,event_type,timestamp</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>5. Use First File Mode for Directories</h3>
+<p>When you only need a sample from a directory with many files:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Read only the first file</span>
+cloudcat -p gcs://bucket/spark-output/ -m first
+
+<span class="hljs-comment"># Instead of reading all files</span>
+cloudcat -p gcs://bucket/spark-output/ -m all</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>6. Set Appropriate Size Limits</h3>
+<p>Control memory usage when reading multiple files:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Limit to 10MB for quick preview</span>
+cloudcat -p s3://bucket/logs/ -m all --max-size-mb 10
+
+<span class="hljs-comment"># Increase for complete datasets</span>
+cloudcat -p s3://bucket/data/ -m all --max-size-mb 100</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>7. Use Schema-Only for Structure Checks</h3>
+<p>When you only need to check the schema:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Instant - doesn&#x27;t read data</span>
+cloudcat -p gcs://bucket/data.parquet -s schema_only</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>8. Compression Considerations</h3>
+<p>CloudCat handles compressed files efficiently:</p>
+<ul>
+<li><strong>Gzip/Bzip2</strong> - Built-in, always available</li>
+<li><strong>Zstandard</strong> - Fast decompression, good for large files</li>
+<li><strong>LZ4</strong> - Fastest decompression</li>
+<li><strong>Snappy</strong> - Good balance of speed and ratio</li>
+</ul>
+<p>For best performance with large files, prefer zstd or lz4:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/data.csv.zst -n 100</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>9. Network Considerations</h3>
+<p>CloudCat streams data, so network latency matters:</p>
+<ul>
+<li>Run CloudCat close to your data (same region)</li>
+<li>Use AWS EC2/GCP Compute/Azure VMs in the same region as your buckets</li>
+<li>For local development, expect slower performance due to network transfer</li>
+</ul>
+<h3>10. Memory Management</h3>
+<p>For very large previews, be mindful of memory:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># This loads all data into memory</span>
+cloudcat -p s3://bucket/huge.parquet -n 0
+
+<span class="hljs-comment"># Better: limit rows</span>
+cloudcat -p s3://bucket/huge.parquet -n 1000</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Performance Comparison</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Operation</th>
+<th>CSV</th>
+<th>JSON</th>
+<th>Parquet</th>
+</tr>
+</thead><tbody><tr>
+<td>Record Count</td>
+<td>Slow (full scan)</td>
+<td>Slow (full scan)</td>
+<td>Instant (metadata)</td>
+</tr>
+<tr>
+<td>Column Selection</td>
+<td>Full file read</td>
+<td>Full file read</td>
+<td>Reads only selected</td>
+</tr>
+<tr>
+<td>First N Rows</td>
+<td>Fast (stops early)</td>
+<td>Fast (stops early)</td>
+<td>Fast</td>
+</tr>
+<tr>
+<td>Compression</td>
+<td>Standard</td>
+<td>Standard</td>
+<td>Built-in, efficient</td>
+</tr>
+</tbody></table></div><h3>Quick Reference</h3>
+<div class="table-wrapper"><table><thead><tr>
+<th>Goal</th>
+<th>Recommendation</th>
+</tr>
+</thead><tbody><tr>
+<td>Fastest preview</td>
+<td><code>-n 10 --no-count</code></td>
+</tr>
+<tr>
+<td>Check structure</td>
+<td><code>-s schema_only</code></td>
+</tr>
+<tr>
+<td>Large directories</td>
+<td><code>-m first</code></td>
+</tr>
+<tr>
+<td>Wide tables</td>
+<td><code>-c col1,col2,col3</code></td>
+</tr>
+<tr>
+<td>Memory efficiency</td>
+<td>Set reasonable <code>-n</code> value</td>
+</tr>
+</tbody></table></div>
+</section>
+<section id="troubleshooting" class="doc-section">
+<h2>Troubleshooting</h2>
+<p>Solutions to common issues when using CloudCat.</p>
+<h3>Missing Package Errors</h3>
+<h4>&quot;google-cloud-storage package is required&quot;</h4>
+<div class="code-block"><pre><code class="hljs language-bash">pip install cloudcat
+<span class="hljs-comment"># or</span>
+pip install google-cloud-storage</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>&quot;boto3 package is required&quot;</h4>
+<div class="code-block"><pre><code class="hljs language-bash">pip install cloudcat
+<span class="hljs-comment"># or</span>
+pip install boto3</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>&quot;azure-storage-blob package is required&quot;</h4>
+<div class="code-block"><pre><code class="hljs language-bash">pip install cloudcat
+<span class="hljs-comment"># or</span>
+pip install azure-storage-blob azure-identity</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>&quot;pyarrow package is required&quot;</h4>
+<p>For Parquet or ORC file support:</p>
+<div class="code-block"><pre><code class="hljs language-bash">pip install <span class="hljs-string">&#x27;cloudcat[parquet]&#x27;</span>
+<span class="hljs-comment"># or</span>
+pip install pyarrow</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>&quot;fastavro package is required&quot;</h4>
+<p>For Avro file support:</p>
+<div class="code-block"><pre><code class="hljs language-bash">pip install <span class="hljs-string">&#x27;cloudcat[avro]&#x27;</span>
+<span class="hljs-comment"># or</span>
+pip install fastavro</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>&quot;zstandard package is required for .zst files&quot;</h4>
+<div class="code-block"><pre><code class="hljs language-bash">pip install <span class="hljs-string">&#x27;cloudcat[zstd]&#x27;</span>
+<span class="hljs-comment"># or for all compression:</span>
+pip install <span class="hljs-string">&#x27;cloudcat[compression]&#x27;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>&quot;lz4 package is required for .lz4 files&quot;</h4>
+<div class="code-block"><pre><code class="hljs language-bash">pip install <span class="hljs-string">&#x27;cloudcat[lz4]&#x27;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>&quot;python-snappy package is required for .snappy files&quot;</h4>
+<div class="code-block"><pre><code class="hljs language-bash">pip install <span class="hljs-string">&#x27;cloudcat[snappy]&#x27;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Authentication Errors</h3>
+<h4>GCS: &quot;Could not automatically determine credentials&quot;</h4>
+<p>Set up Google Cloud authentication:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Option 1: User credentials</span>
+gcloud auth application-default login
+
+<span class="hljs-comment"># Option 2: Service account</span>
+<span class="hljs-built_in">export</span> GOOGLE_APPLICATION_CREDENTIALS=<span class="hljs-string">&quot;/path/to/service-account.json&quot;</span>
+
+<span class="hljs-comment"># Option 3: CLI option</span>
+cloudcat -p gcs://bucket/file.csv --credentials /path/to/key.json</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>S3: &quot;Unable to locate credentials&quot;</h4>
+<p>Set up AWS authentication:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Option 1: Configure AWS CLI</span>
+aws configure
+
+<span class="hljs-comment"># Option 2: Environment variables</span>
+<span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=<span class="hljs-string">&quot;your-access-key&quot;</span>
+<span class="hljs-built_in">export</span> AWS_SECRET_ACCESS_KEY=<span class="hljs-string">&quot;your-secret-key&quot;</span>
+<span class="hljs-built_in">export</span> AWS_DEFAULT_REGION=<span class="hljs-string">&quot;us-east-1&quot;</span>
+
+<span class="hljs-comment"># Option 3: Use named profile</span>
+cloudcat -p s3://bucket/file.csv --profile myprofile</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Azure: &quot;Azure credentials not found&quot;</h4>
+<p>Set up Azure authentication:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Option 1: Connection string</span>
+<span class="hljs-built_in">export</span> AZURE_STORAGE_CONNECTION_STRING=<span class="hljs-string">&quot;DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net&quot;</span>
+
+<span class="hljs-comment"># Option 2: Azure AD</span>
+<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCOUNT_URL=<span class="hljs-string">&quot;https://account.blob.core.windows.net&quot;</span>
+az login
+
+<span class="hljs-comment"># Option 3: Specify account</span>
+cloudcat -p az://container/file.csv --account mystorageaccount</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Format Detection Issues</h3>
+<h4>&quot;Could not infer format from path&quot;</h4>
+<p>When CloudCat can&#39;t determine the file format:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Specify the format explicitly</span>
+cloudcat -p gcs://bucket/data -i parquet
+cloudcat -p s3://bucket/file -i csv
+cloudcat -p az://container/logs -i json</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Reading files without extensions</h4>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/data-file -i parquet</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Access Permission Errors</h3>
+<h4>&quot;Access Denied&quot; or &quot;403 Forbidden&quot;</h4>
+<p>Check that your credentials have the necessary permissions:</p>
+<p><strong>GCS:</strong></p>
+<ul>
+<li><code>storage.objects.get</code> for reading files</li>
+<li><code>storage.objects.list</code> for listing directories</li>
+</ul>
+<p><strong>S3:</strong></p>
+<ul>
+<li><code>s3:GetObject</code> for reading files</li>
+<li><code>s3:ListBucket</code> for listing directories</li>
+</ul>
+<p><strong>Azure:</strong></p>
+<ul>
+<li><code>Storage Blob Data Reader</code> role or equivalent</li>
+</ul>
+<h3>Network Issues</h3>
+<h4>Timeout errors</h4>
+<p>For slow connections or large files:</p>
+<ul>
+<li>Use <code>--num-rows</code> to limit data transfer</li>
+<li>Use <code>--no-count</code> to skip record counting</li>
+<li>Check network connectivity to the cloud provider</li>
+</ul>
+<h4>&quot;Connection reset&quot; errors</h4>
+<p>May indicate network instability. Try:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Smaller preview</span>
+cloudcat -p s3://bucket/file.csv -n 10 --no-count</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Memory Issues</h3>
+<h4>&quot;MemoryError&quot; or system slowdown</h4>
+<p>When previewing large files:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Limit rows</span>
+cloudcat -p gcs://bucket/huge.parquet -n 100
+
+<span class="hljs-comment"># Don&#x27;t load all rows</span>
+<span class="hljs-comment"># Avoid: cloudcat -p s3://bucket/huge.csv -n 0</span>
+
+<span class="hljs-comment"># Limit directory size</span>
+cloudcat -p s3://bucket/large-dir/ -m all --max-size-mb 10</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>CSV Issues</h3>
+<h4>Wrong columns or parsing errors</h4>
+<p>For non-standard CSV files:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Tab-separated</span>
+cloudcat -p gcs://bucket/data.tsv -d <span class="hljs-string">&quot;\t&quot;</span>
+
+<span class="hljs-comment"># Pipe-delimited</span>
+cloudcat -p s3://bucket/data.txt -d <span class="hljs-string">&quot;|&quot;</span>
+
+<span class="hljs-comment"># Semicolon-delimited</span>
+cloudcat -p gcs://bucket/data.csv -d <span class="hljs-string">&quot;;&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Directory Issues</h3>
+<h4>&quot;No data files found in directory&quot;</h4>
+<p>Check that:</p>
+<ol>
+<li>The directory contains files with recognized extensions</li>
+<li>Files aren&#39;t all metadata files (<code>_SUCCESS</code>, <code>.crc</code>, etc.)</li>
+<li>You have permission to list the directory</li>
+</ol>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Specify format explicitly</span>
+cloudcat -p s3://bucket/output/ -i parquet</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Getting Help</h3>
+<p>If you&#39;re still having issues:</p>
+<ol>
+<li>Check you&#39;re using the latest version: <code>pip install --upgrade cloudcat</code></li>
+<li>Try with <code>--help</code> to see all options</li>
+<li><a href="https://github.com/jonathansudhakar1/cloudcat/issues">Open an issue</a> on GitHub with:<ul>
+<li>CloudCat version</li>
+<li>Python version</li>
+<li>Full error message</li>
+<li>Command that caused the error</li>
+</ul>
+</li>
+</ol>
+
+</section>
+<section id="contributing" class="doc-section">
+<h2>Contributing</h2>
+<p>Contributions are welcome! Here&#39;s how you can help improve CloudCat.</p>
+<h3>Ways to Contribute</h3>
+<ol>
+<li><strong>Report Bugs</strong> - Open an issue with reproduction steps</li>
+<li><strong>Suggest Features</strong> - Open an issue describing the use case</li>
+<li><strong>Submit PRs</strong> - Fork, create a branch, and submit a pull request</li>
+<li><strong>Improve Docs</strong> - Help make the documentation better</li>
+<li><strong>Share CloudCat</strong> - Star the repo and spread the word</li>
+</ol>
+<h3>Development Setup</h3>
+<p>Clone and set up the development environment:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Clone the repository</span>
+git <span class="hljs-built_in">clone</span> https://github.com/jonathansudhakar1/cloudcat.git
+<span class="hljs-built_in">cd</span> cloudcat
+
+<span class="hljs-comment"># Create virtual environment</span>
+python -m venv venv
+<span class="hljs-built_in">source</span> venv/bin/activate  <span class="hljs-comment"># or `venv\Scripts\activate` on Windows</span>
+
+<span class="hljs-comment"># Install in development mode with all dependencies</span>
+pip install -e <span class="hljs-string">&quot;.[all]&quot;</span>
+
+<span class="hljs-comment"># Run tests</span>
+pytest</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Project Structure</h3>
+<div class="code-block"><pre><code class="hljs language-plaintext">cloudcat/
+├── cloudcat/
+│   ├── __init__.py         # Version info
+│   ├── cli.py              # Main CLI entry point
+│   ├── config.py           # Configuration management
+│   ├── compression.py      # Compression handling
+│   ├── filtering.py        # WHERE clause parsing
+│   ├── formatters.py       # Output formatting
+│   ├── readers/            # Format readers
+│   │   ├── csv.py
+│   │   ├── json.py
+│   │   ├── parquet.py
+│   │   ├── avro.py
+│   │   ├── orc.py
+│   │   └── text.py
+│   └── storage/            # Cloud storage clients
+│       ├── base.py
+│       ├── gcs.py
+│       ├── s3.py
+│       └── azure.py
+├── tests/
+├── docs/
+├── setup.py
+└── README.md</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Submitting Pull Requests</h3>
+<ol>
+<li>Fork the repository</li>
+<li>Create a feature branch: <code>git checkout -b feature/my-feature</code></li>
+<li>Make your changes</li>
+<li>Add tests if applicable</li>
+<li>Run tests: <code>pytest</code></li>
+<li>Commit your changes: <code>git commit -m &quot;Add my feature&quot;</code></li>
+<li>Push to your fork: <code>git push origin feature/my-feature</code></li>
+<li>Open a pull request</li>
+</ol>
+<h3>Code Style</h3>
+<ul>
+<li>Follow PEP 8 guidelines</li>
+<li>Use meaningful variable names</li>
+<li>Add docstrings to functions</li>
+<li>Keep functions focused and small</li>
+</ul>
+<h3>Running Tests</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Run all tests</span>
+pytest
+
+<span class="hljs-comment"># Run with coverage</span>
+pytest --cov=cloudcat
+
+<span class="hljs-comment"># Run specific test file</span>
+pytest tests/test_cli.py</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Adding a New File Format</h3>
+<p>To add support for a new file format:</p>
+<ol>
+<li>Create a new reader in <code>cloudcat/readers/</code></li>
+<li>Export a <code>read_*_data()</code> function that returns <code>(DataFrame, schema)</code></li>
+<li>Update <code>cli.py</code> to handle the new format</li>
+<li>Add format detection in <code>cli.py</code></li>
+<li>Add tests</li>
+<li>Update documentation</li>
+</ol>
+<h3>Adding a New Cloud Provider</h3>
+<p>To add support for a new cloud provider:</p>
+<ol>
+<li>Create a new client in <code>cloudcat/storage/</code></li>
+<li>Implement <code>get_stream()</code> and <code>list_directory()</code> functions</li>
+<li>Update <code>cloudcat/storage/base.py</code> to route to the new provider</li>
+<li>Add authentication handling</li>
+<li>Add tests</li>
+<li>Update documentation</li>
+</ol>
+<h3>Reporting Issues</h3>
+<p>When reporting bugs, please include:</p>
+<ul>
+<li>CloudCat version (<code>pip show cloudcat</code>)</li>
+<li>Python version (<code>python --version</code>)</li>
+<li>Operating system</li>
+<li>Full error message/traceback</li>
+<li>Minimal reproduction steps</li>
+<li>Sample data (if possible and not sensitive)</li>
+</ul>
+<h3>Feature Requests</h3>
+<p>When suggesting features:</p>
+<ul>
+<li>Describe the use case</li>
+<li>Explain how you&#39;d like it to work</li>
+<li>Consider if it fits CloudCat&#39;s scope</li>
+<li>Be open to discussion on implementation</li>
+</ul>
+<h3>License</h3>
+<p>By contributing, you agree that your contributions will be licensed under the MIT License.</p>
+
+</section>
+<section id="roadmap" class="doc-section">
+<h2>Roadmap</h2>
+<p>CloudCat is actively developed. Here&#39;s what&#39;s been accomplished and what&#39;s planned.</p>
+<h3>Completed Features</h3>
+<ul>
+<li><input checked="" disabled="" type="checkbox"> <strong>Google Cloud Storage support</strong> - Full GCS integration</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Amazon S3 support</strong> - Full S3 integration with profiles</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Azure Blob Storage support</strong> - Full Azure integration</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>CSV format</strong> - With custom delimiters</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>JSON format</strong> - Standard JSON and JSON Lines</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Parquet format</strong> - With efficient column selection</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Avro format</strong> - Full Avro support</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>ORC format</strong> - Via PyArrow</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Plain text format</strong> - For log files</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>SQL-like filtering</strong> - WHERE clause support</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Compression support</strong> - gzip, bz2, zstd, lz4, snappy</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Row offset/pagination</strong> - Skip and limit rows</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Schema inspection</strong> - View data types</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Multi-file directories</strong> - Spark/Hive output support</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Multiple output formats</strong> - table, json, jsonp, csv</li>
+</ul>
+<h3>Planned Features</h3>
+<ul>
+<li><input disabled="" type="checkbox"> <strong>Interactive mode</strong> - Pagination with keyboard navigation</li>
+<li><input disabled="" type="checkbox"> <strong>Output to file</strong> - Direct <code>--output-file</code> option</li>
+<li><input disabled="" type="checkbox"> <strong>Configuration file</strong> - <code>.cloudcatrc</code> for defaults</li>
+<li><input disabled="" type="checkbox"> <strong>Multiple WHERE conditions</strong> - AND/OR operators</li>
+<li><input disabled="" type="checkbox"> <strong>Sampling</strong> - Random row sampling</li>
+<li><input disabled="" type="checkbox"> <strong>Profile support</strong> - Named configuration profiles</li>
+<li><input disabled="" type="checkbox"> <strong>Delta Lake support</strong> - Read Delta tables</li>
+<li><input disabled="" type="checkbox"> <strong>Iceberg support</strong> - Read Iceberg tables</li>
+</ul>
+<h3>Under Consideration</h3>
+<ul>
+<li><strong>Write support</strong> - Converting and writing data</li>
+<li><strong>SQL queries</strong> - Full SQL query support via DuckDB</li>
+<li><strong>Data profiling</strong> - Basic statistics and profiling</li>
+<li><strong>Diff mode</strong> - Compare two files</li>
+<li><strong>Watch mode</strong> - Monitor file changes</li>
+<li><strong>Plugins</strong> - Custom reader/writer plugins</li>
+</ul>
+<h3>Version History</h3>
+<p><strong>v0.1.4</strong> (Current)</p>
+<ul>
+<li>Azure Blob Storage support</li>
+<li>Avro and ORC format support</li>
+<li>WHERE clause filtering</li>
+<li>Row offset/pagination</li>
+<li>Compression support (zstd, lz4, snappy)</li>
+</ul>
+<p><strong>v0.1.0</strong></p>
+<ul>
+<li>Initial release</li>
+<li>GCS and S3 support</li>
+<li>CSV, JSON, Parquet formats</li>
+<li>Basic functionality</li>
+</ul>
+<h3>Contributing to the Roadmap</h3>
+<p>Have a feature idea? We&#39;d love to hear it!</p>
+<ol>
+<li>Check <a href="https://github.com/jonathansudhakar1/cloudcat/issues">existing issues</a> for similar requests</li>
+<li>Open a new issue describing:<ul>
+<li>The use case</li>
+<li>How it would work</li>
+<li>Why it would be valuable</li>
+</ul>
+</li>
+<li>Join the discussion</li>
+</ol>
+<h3>Feedback</h3>
+<p>Your feedback shapes CloudCat&#39;s development:</p>
+<ul>
+<li><a href="https://github.com/jonathansudhakar1/cloudcat">Star the repo</a> to show support</li>
+<li><a href="https://github.com/jonathansudhakar1/cloudcat/issues">Open issues</a> for bugs or features</li>
+<li><a href="https://github.com/jonathansudhakar1/cloudcat/pulls">Contribute</a> pull requests</li>
+</ul>
+
+</section>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <img src="/assets/logo.png" alt="CloudCat Logo" width="40" height="40">
+                <div>
+                    <strong>CloudCat</strong>
+                    <p>Preview cloud storage data from your terminal</p>
+                </div>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>Resources</h4>
+                    <a href="#installation">Installation</a>
+                    <a href="#quickstart">Quick Start</a>
+                    <a href="#command-reference">CLI Reference</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Community</h4>
+                    <a href="https://github.com/jonathansudhakar1/cloudcat" target="_blank" rel="noopener">GitHub</a>
+                    <a href="https://github.com/jonathansudhakar1/cloudcat/issues" target="_blank" rel="noopener">Report Issue</a>
+                    <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">PyPI</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>MIT License. Built with care for data engineers everywhere.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/js/main.js"></script>
+</body>
+</html>

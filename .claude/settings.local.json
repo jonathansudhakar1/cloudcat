@@ -5,7 +5,11 @@
       "Bash(python:*)",
       "Bash(pip install:*)",
       "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pip install:*)",
-      "Bash(pip3 install:*)"
+      "Bash(pip3 install:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:*)"
     ]
   },
   "enableAllProjectMcpServers": false

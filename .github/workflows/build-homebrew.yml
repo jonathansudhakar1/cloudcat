@@ -1,0 +1,218 @@
+name: Build Homebrew Bottles
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 0.1.4)'
+        required: true
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13      # Intel
+            arch: x86_64
+          - os: macos-14      # Apple Silicon
+            arch: arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install '.[all]'
+
+      - name: Build standalone executable
+        run: |
+          cd packaging/pyinstaller
+          pyinstaller cloudcat.spec --noconfirm --clean
+
+          # Verify the build
+          echo "Testing executable..."
+          ./dist/cloudcat --help
+          ./dist/cloudcat --version
+
+      - name: Create tarball
+        id: tarball
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCH="${{ matrix.arch }}"
+          TARBALL="cloudcat-${VERSION}-macos-${ARCH}.tar.gz"
+
+          cd packaging/pyinstaller/dist
+          tar -czvf "$TARBALL" cloudcat
+
+          # Calculate SHA256
+          SHA256=$(shasum -a 256 "$TARBALL" | cut -d' ' -f1)
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "tarball=$TARBALL" >> $GITHUB_OUTPUT
+
+          echo "Created: $TARBALL"
+          echo "SHA256: $SHA256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudcat-${{ steps.version.outputs.version }}-macos-${{ matrix.arch }}
+          path: packaging/pyinstaller/dist/cloudcat-*.tar.gz
+          retention-days: 7
+
+  upload-release-assets:
+    needs: build-macos
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          pattern: cloudcat-*
+          merge-multiple: true
+
+      - name: List artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find ./artifacts -type f -name "*.tar.gz"
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./artifacts/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew-formula:
+    needs: [build-macos, upload-release-assets]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          pattern: cloudcat-*
+          merge-multiple: true
+
+      - name: Get version and checksums
+        id: info
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Calculate SHA256 for each architecture
+          SHA256_X86=$(shasum -a 256 ./artifacts/cloudcat-${VERSION}-macos-x86_64.tar.gz | cut -d' ' -f1)
+          SHA256_ARM=$(shasum -a 256 ./artifacts/cloudcat-${VERSION}-macos-arm64.tar.gz | cut -d' ' -f1)
+
+          echo "sha256_x86=$SHA256_X86" >> $GITHUB_OUTPUT
+          echo "sha256_arm=$SHA256_ARM" >> $GITHUB_OUTPUT
+
+          echo "Version: $VERSION"
+          echo "SHA256 (x86_64): $SHA256_X86"
+          echo "SHA256 (arm64): $SHA256_ARM"
+
+      - name: Update formula
+        run: |
+          VERSION="${{ steps.info.outputs.version }}"
+          SHA256_X86="${{ steps.info.outputs.sha256_x86 }}"
+          SHA256_ARM="${{ steps.info.outputs.sha256_arm }}"
+
+          mkdir -p Formula
+
+          cat > Formula/cloudcat.rb << FORMULA_EOF
+          class Cloudcat < Formula
+            desc "Preview and analyze data files in cloud storage from your terminal"
+            homepage "https://github.com/jonathansudhakar1/cloudcat"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_intel do
+                url "https://github.com/jonathansudhakar1/cloudcat/releases/download/v${VERSION}/cloudcat-${VERSION}-macos-x86_64.tar.gz"
+                sha256 "${SHA256_X86}"
+              end
+              on_arm do
+                url "https://github.com/jonathansudhakar1/cloudcat/releases/download/v${VERSION}/cloudcat-${VERSION}-macos-arm64.tar.gz"
+                sha256 "${SHA256_ARM}"
+              end
+            end
+
+            def install
+              bin.install "cloudcat"
+            end
+
+            def caveats
+              <<~EOS
+                cloudcat requires cloud provider credentials to be configured:
+
+                Google Cloud Storage:
+                  gcloud auth application-default login
+
+                Amazon S3:
+                  aws configure
+
+                Azure Blob Storage:
+                  az login
+                  # or set AZURE_STORAGE_CONNECTION_STRING
+
+                For more information, see:
+                  https://github.com/jonathansudhakar1/cloudcat#authentication
+
+                Note: On first run, you may need to allow the app in System Settings > Privacy & Security,
+                or run: xattr -d com.apple.quarantine \$(which cloudcat)
+              EOS
+            end
+
+            test do
+              assert_match "Usage:", shell_output("#{bin}/cloudcat --help")
+            end
+          end
+          FORMULA_EOF
+
+          echo "Generated formula:"
+          cat Formula/cloudcat.rb
+
+      - name: Commit and push formula
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/cloudcat.rb
+          git commit -m "Update Homebrew formula to ${{ github.event.release.tag_name }}"
+          git push
