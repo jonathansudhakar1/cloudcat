@@ -8,7 +8,6 @@ CloudCat is designed to make previewing cloud data effortless. Here's what it of
 |----------|------------|--------|
 | Google Cloud Storage | `gcs://` or `gs://` | Supported |
 | Amazon S3 | `s3://` | Supported |
-| Azure Blob Storage | `az://` or `azure://` | Supported |
 | Azure Data Lake Gen2 | `abfss://` | Supported |
 
 ### File Format Support

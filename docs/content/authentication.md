@@ -157,7 +157,6 @@ The service principal needs the **Storage Blob Data Reader** role on the storage
 | GCS | `gcs://bucket/path` or `gs://bucket/path` | `gcs://my-bucket/data/file.csv` |
 | S3 | `s3://bucket/path` | `s3://my-bucket/data/file.parquet` |
 | Azure ADLS Gen2 | `abfss://container@account.dfs.core.windows.net/path` | `abfss://data@myaccount.dfs.core.windows.net/folder/file.parquet` |
-| Azure Blob | `az://container/path` | `az://my-container/data/file.json` |
 
 ### Troubleshooting Authentication
 

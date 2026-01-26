@@ -136,10 +136,10 @@
         },
         {
           "@type": "Question",
-          "name": "Does CloudCat support Azure Blob Storage?",
+          "name": "Does CloudCat support Azure Data Lake Storage?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes, CloudCat supports Azure Blob Storage. Use az:// or azure:// URL schemes to preview files: cloudcat -p az://container/file.csv"
+            "text": "Yes, CloudCat supports Azure Data Lake Storage Gen2. Use the abfss:// URL scheme: cloudcat -p abfss://container@account.dfs.core.windows.net/file.csv"
           }
         }
       ]
@@ -189,9 +189,6 @@
 <a href="#installation" class="nav-link">Installation</a>
 <a href="#quickstart" class="nav-link">Quick Start</a>
 <a href="#command-reference" class="nav-link">CLI Reference</a>
-<a href="#authentication" class="nav-link">Authentication</a>
-<a href="#use-cases" class="nav-link">Use Cases</a>
-<a href="#troubleshooting" class="nav-link">Troubleshooting</a>
             </div>
             <div class="nav-actions">
                 <a href="https://github.com/jonathansudhakar1/cloudcat" class="btn btn-star" target="_blank" rel="noopener noreferrer">
@@ -352,11 +349,6 @@
 <tr>
 <td>Amazon S3</td>
 <td><code>s3://</code></td>
-<td>Supported</td>
-</tr>
-<tr>
-<td>Azure Blob Storage</td>
-<td><code>az://</code> or <code>azure://</code></td>
 <td>Supported</td>
 </tr>
 <tr>
@@ -679,8 +671,8 @@ cloudcat -p gcs://my-bucket/data.csv
 <span class="hljs-comment"># From Amazon S3</span>
 cloudcat -p s3://my-bucket/data.csv
 
-<span class="hljs-comment"># From Azure Blob Storage</span>
-cloudcat -p az://my-container/data.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Preview Parquet Files</h3>
+<span class="hljs-comment"># From Azure Data Lake Storage Gen2</span>
+cloudcat -p abfss://my-container@account.dfs.core.windows.net/data.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Preview Parquet Files</h3>
 <div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Preview first 10 rows (default)</span>
 cloudcat -p s3://my-bucket/analytics/events.parquet
 
@@ -693,7 +685,7 @@ cloudcat -p s3://my-bucket/config.json
 cloudcat -p gcs://my-bucket/events.jsonl
 
 <span class="hljs-comment"># With pretty formatting</span>
-cloudcat -p az://my-container/logs.json -o jsonp</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Select Specific Columns</h3>
+cloudcat -p abfss://my-container@account.dfs.core.windows.net/logs.json -o jsonp</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Select Specific Columns</h3>
 <div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/users.json -c <span class="hljs-built_in">id</span>,name,email</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Filter Rows</h3>
 <div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Exact match</span>
 cloudcat -p s3://bucket/users.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;status=active&quot;</span>
@@ -737,7 +729,7 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 </tr>
 </thead><tbody><tr>
 <td><code>-p, --path TEXT</code></td>
-<td>Cloud storage path (required). Format: <code>gcs://bucket/path</code>, <code>s3://bucket/path</code>, or <code>az://container/path</code></td>
+<td>Cloud storage path (required). Formats: <code>gcs://bucket/path</code>, <code>s3://bucket/path</code>, or <code>abfss://container@account.dfs.core.windows.net/path</code></td>
 </tr>
 </tbody></table></div><h3>Output &amp; Format Options</h3>
 <div class="table-wrapper"><table><thead><tr>
@@ -842,8 +834,8 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 <td>Path to GCP service account JSON file</td>
 </tr>
 <tr>
-<td><code>--account TEXT</code></td>
-<td>Azure storage account name</td>
+<td><code>--az-access-key TEXT</code></td>
+<td>Azure storage account access key</td>
 </tr>
 </tbody></table></div><h3>General Options</h3>
 <div class="table-wrapper"><table><thead><tr>
@@ -851,6 +843,10 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 <th>Description</th>
 </tr>
 </thead><tbody><tr>
+<td><code>-y, --yes</code></td>
+<td>Skip confirmation prompts (for scripting)</td>
+</tr>
+<tr>
 <td><code>--help</code></td>
 <td>Show help message and exit</td>
 </tr>
@@ -865,7 +861,7 @@ cloudcat -p s3://bucket/users.parquet -c <span class="hljs-built_in">id</span>,n
 cloudcat -p gcs://bucket/events.json --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;status=active&quot;</span>
 
 <span class="hljs-comment"># Output as JSON</span>
-cloudcat -p az://container/data.csv -o json
+cloudcat -p s3://bucket/data.csv -o json
 
 <span class="hljs-comment"># Read from Spark output directory</span>
 cloudcat -p s3://bucket/spark-output/ -i parquet -m all
@@ -883,7 +879,14 @@ cloudcat -p gcs://bucket/events.parquet -s schema_only
 cloudcat -p s3://bucket/data.csv --profile production
 
 <span class="hljs-comment"># With GCP credentials</span>
-cloudcat -p gcs://bucket/data.csv --credentials /path/to/key.json</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+cloudcat -p gcs://bucket/data.csv --credentials /path/to/key.json
+
+<span class="hljs-comment"># Azure Data Lake Storage Gen2 with access key</span>
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet --az-access-key <span class="hljs-string">&quot;YOUR_KEY&quot;</span>
+
+<span class="hljs-comment"># Azure with environment variable (no CLI option needed)</span>
+<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCESS_KEY=<span class="hljs-string">&quot;YOUR_KEY&quot;</span>
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
 </section>
 <section id="where-operators" class="doc-section">
 <h2>WHERE Operators</h2>
@@ -1020,20 +1023,34 @@ cloudcat -p gcs://bucket/users.parquet --<span class="hljs-built_in">where</span
 <span class="hljs-attr">aws_secret_access_key</span> = ...
 <span class="hljs-attr">region</span> = us-west-<span class="hljs-number">2</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 4: IAM Role (EC2/ECS/Lambda)</h4>
 <p>When running on AWS infrastructure (EC2, ECS, Lambda), CloudCat automatically uses the attached IAM role. No configuration needed.</p>
-<h3>Azure Blob Storage</h3>
-<p>CloudCat supports multiple authentication methods for Azure.</p>
-<h4>Option 1: Connection String (Simplest)</h4>
-<p>Set the full connection string:</p>
-<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-built_in">export</span> AZURE_STORAGE_CONNECTION_STRING=<span class="hljs-string">&quot;DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 2: Azure AD Authentication</h4>
-<p>Use Azure CLI login with account URL:</p>
-<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Set the account URL</span>
-<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCOUNT_URL=<span class="hljs-string">&quot;https://youraccount.blob.core.windows.net&quot;</span>
+<h3>Azure Data Lake Storage Gen2 (ADLS Gen2)</h3>
+<p>CloudCat supports Azure Data Lake Storage Gen2 with multiple authentication methods.</p>
+<h4>Option 1: Storage Account Access Key (Simplest)</h4>
+<p>Get your access key from Azure Portal: Storage Account → Security + networking → Access keys</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Pass directly to cloudcat</span>
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet --az-access-key <span class="hljs-string">&quot;YOUR_KEY&quot;</span>
 
-<span class="hljs-comment"># Login with Azure CLI</span>
-az login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>CloudCat will use DefaultAzureCredential to authenticate.</p>
-<h4>Option 3: Storage Account (CLI Option)</h4>
-<p>Specify the storage account directly:</p>
-<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p az://container/data.csv --account mystorageaccount</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This requires either a connection string or Azure AD authentication to be configured.</p>
+<span class="hljs-comment"># Or set as environment variable</span>
+<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCESS_KEY=<span class="hljs-string">&quot;YOUR_KEY&quot;</span>
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 2: Azure CLI (Development)</h4>
+<p>Best for local development with Azure AD authentication:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Install Azure CLI</span>
+brew install azure-cli  <span class="hljs-comment"># macOS</span>
+<span class="hljs-comment"># or: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash  # Linux</span>
+
+<span class="hljs-comment"># Login to Azure</span>
+az login
+
+<span class="hljs-comment"># If you have multiple subscriptions, set the active one</span>
+az account <span class="hljs-built_in">set</span> --subscription <span class="hljs-string">&quot;Your Subscription Name&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p><strong>Important:</strong> Your Azure AD account needs the <strong>Storage Blob Data Reader</strong> role (or Contributor) on the storage account. Assign this in Azure Portal: Storage Account → Access Control (IAM) → Add role assignment.</p>
+<p>Then use CloudCat:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p abfss://container@account.dfs.core.windows.net/path/data.parquet</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 3: Connection String</h4>
+<p>Set the full connection string:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-built_in">export</span> AZURE_STORAGE_CONNECTION_STRING=<span class="hljs-string">&quot;DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Option 4: Service Principal (CI/CD)</h4>
+<p>For automated pipelines, use a service principal:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-built_in">export</span> AZURE_TENANT_ID=<span class="hljs-string">&quot;your-tenant-id&quot;</span>
+<span class="hljs-built_in">export</span> AZURE_CLIENT_ID=<span class="hljs-string">&quot;your-client-id&quot;</span>
+<span class="hljs-built_in">export</span> AZURE_CLIENT_SECRET=<span class="hljs-string">&quot;your-client-secret&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>The service principal needs the <strong>Storage Blob Data Reader</strong> role on the storage account.</p>
 <h3>Path Formats</h3>
 <div class="table-wrapper"><table><thead><tr>
 <th>Provider</th>
@@ -1051,9 +1068,9 @@ az login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http:
 <td><code>s3://my-bucket/data/file.parquet</code></td>
 </tr>
 <tr>
-<td>Azure</td>
-<td><code>az://container/path</code> or <code>azure://container/path</code></td>
-<td><code>az://my-container/data/file.json</code></td>
+<td>Azure ADLS Gen2</td>
+<td><code>abfss://container@account.dfs.core.windows.net/path</code></td>
+<td><code>abfss://data@myaccount.dfs.core.windows.net/folder/file.parquet</code></td>
 </tr>
 </tbody></table></div><h3>Troubleshooting Authentication</h3>
 <p><strong>GCS: &quot;Could not automatically determine credentials&quot;</strong></p>
@@ -1061,12 +1078,20 @@ az login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http:
 <div class="code-block"><pre><code class="hljs language-bash">aws configure
 <span class="hljs-comment"># Or set environment variables</span>
 <span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=<span class="hljs-string">&quot;...&quot;</span>
-<span class="hljs-built_in">export</span> AWS_SECRET_ACCESS_KEY=<span class="hljs-string">&quot;...&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p><strong>Azure: &quot;Azure credentials not found&quot;</strong></p>
-<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Option 1: Set connection string</span>
-<span class="hljs-built_in">export</span> AZURE_STORAGE_CONNECTION_STRING=<span class="hljs-string">&quot;...&quot;</span>
+<span class="hljs-built_in">export</span> AWS_SECRET_ACCESS_KEY=<span class="hljs-string">&quot;...&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p><strong>Azure: &quot;AuthorizationPermissionMismatch&quot; or &quot;403 Forbidden&quot;</strong></p>
+<p>This usually means your credentials don&#39;t have the right role. For Azure AD authentication (az login), you need the <strong>Storage Blob Data Reader</strong> role on the storage account, not just the subscription.</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Option 1: Use access key instead</span>
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet --az-access-key <span class="hljs-string">&quot;YOUR_KEY&quot;</span>
+
+<span class="hljs-comment"># Option 2: Add role assignment in Azure Portal</span>
+<span class="hljs-comment"># Storage Account → Access Control (IAM) → Add role assignment</span>
+<span class="hljs-comment"># Role: Storage Blob Data Reader</span>
+<span class="hljs-comment"># Assign to: Your user or service principal</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p><strong>Azure: &quot;Azure credentials not found&quot;</strong></p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Option 1: Use access key</span>
+<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCESS_KEY=<span class="hljs-string">&quot;...&quot;</span>
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet
 
 <span class="hljs-comment"># Option 2: Use Azure CLI</span>
-<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCOUNT_URL=<span class="hljs-string">&quot;https://account.blob.core.windows.net&quot;</span>
 az login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
 </section>
 <section id="directory-operations" class="doc-section">
@@ -1355,7 +1380,7 @@ cloudcat -p s3://destination/data.parquet -c <span class="hljs-built_in">id</spa
 
 <span class="hljs-comment"># Verify replication</span>
 cloudcat -p gcs://primary/users.csv
-cloudcat -p az://backup/users.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Integration with Other Tools</h3>
+cloudcat -p abfss://backup@account.dfs.core.windows.net/users.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Integration with Other Tools</h3>
 <p>Combine CloudCat with other command-line tools:</p>
 <div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Count records with wc</span>
 cloudcat -p s3://bucket/data.csv -o csv -n 0 | <span class="hljs-built_in">wc</span> -l
@@ -1538,21 +1563,22 @@ aws configure
 <span class="hljs-comment"># Option 3: Use named profile</span>
 cloudcat -p s3://bucket/file.csv --profile myprofile</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Azure: &quot;Azure credentials not found&quot;</h4>
 <p>Set up Azure authentication:</p>
-<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Option 1: Connection string</span>
-<span class="hljs-built_in">export</span> AZURE_STORAGE_CONNECTION_STRING=<span class="hljs-string">&quot;DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net&quot;</span>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Option 1: Access key via CLI option</span>
+cloudcat -p abfss://container@account.dfs.core.windows.net/file.csv --az-access-key <span class="hljs-string">&quot;YOUR_KEY&quot;</span>
 
-<span class="hljs-comment"># Option 2: Azure AD</span>
-<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCOUNT_URL=<span class="hljs-string">&quot;https://account.blob.core.windows.net&quot;</span>
+<span class="hljs-comment"># Option 2: Access key via environment variable</span>
+<span class="hljs-built_in">export</span> AZURE_STORAGE_ACCESS_KEY=<span class="hljs-string">&quot;YOUR_KEY&quot;</span>
+cloudcat -p abfss://container@account.dfs.core.windows.net/file.csv
+
+<span class="hljs-comment"># Option 3: Azure AD</span>
 az login
-
-<span class="hljs-comment"># Option 3: Specify account</span>
-cloudcat -p az://container/file.csv --account mystorageaccount</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Format Detection Issues</h3>
+cloudcat -p abfss://container@account.dfs.core.windows.net/file.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Format Detection Issues</h3>
 <h4>&quot;Could not infer format from path&quot;</h4>
 <p>When CloudCat can&#39;t determine the file format:</p>
 <div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Specify the format explicitly</span>
 cloudcat -p gcs://bucket/data -i parquet
 cloudcat -p s3://bucket/file -i csv
-cloudcat -p az://container/logs -i json</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Reading files without extensions</h4>
+cloudcat -p abfss://container@account.dfs.core.windows.net/logs -i json</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h4>Reading files without extensions</h4>
 <div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/data-file -i parquet</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Access Permission Errors</h3>
 <h4>&quot;Access Denied&quot; or &quot;403 Forbidden&quot;</h4>
 <p>Check that your credentials have the necessary permissions:</p>

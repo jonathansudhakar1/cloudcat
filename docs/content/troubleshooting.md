@@ -107,15 +107,16 @@ cloudcat -p s3://bucket/file.csv --profile myprofile
 Set up Azure authentication:
 
 ```bash
-# Option 1: Connection string
-export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
+# Option 1: Access key via CLI option
+cloudcat -p abfss://container@account.dfs.core.windows.net/file.csv --az-access-key "YOUR_KEY"
 
-# Option 2: Azure AD
-export AZURE_STORAGE_ACCOUNT_URL="https://account.blob.core.windows.net"
+# Option 2: Access key via environment variable
+export AZURE_STORAGE_ACCESS_KEY="YOUR_KEY"
+cloudcat -p abfss://container@account.dfs.core.windows.net/file.csv
+
+# Option 3: Azure AD
 az login
-
-# Option 3: Specify account
-cloudcat -p az://container/file.csv --account mystorageaccount
+cloudcat -p abfss://container@account.dfs.core.windows.net/file.csv
 ```
 
 ### Format Detection Issues
@@ -128,7 +129,7 @@ When CloudCat can't determine the file format:
 # Specify the format explicitly
 cloudcat -p gcs://bucket/data -i parquet
 cloudcat -p s3://bucket/file -i csv
-cloudcat -p az://container/logs -i json
+cloudcat -p abfss://container@account.dfs.core.windows.net/logs -i json
 ```
 
 #### Reading files without extensions

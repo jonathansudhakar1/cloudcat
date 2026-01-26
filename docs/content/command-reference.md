@@ -12,7 +12,7 @@ cloudcat [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `-p, --path TEXT` | Cloud storage path (required). Formats: `gcs://bucket/path`, `s3://bucket/path`, `az://container/path`, or `abfss://container@account.dfs.core.windows.net/path` |
+| `-p, --path TEXT` | Cloud storage path (required). Formats: `gcs://bucket/path`, `s3://bucket/path`, or `abfss://container@account.dfs.core.windows.net/path` |
 
 ### Output & Format Options
 
@@ -79,7 +79,7 @@ cloudcat -p s3://bucket/users.parquet -c id,name,email -n 20
 cloudcat -p gcs://bucket/events.json --where "status=active"
 
 # Output as JSON
-cloudcat -p az://container/data.csv -o json
+cloudcat -p s3://bucket/data.csv -o json
 
 # Read from Spark output directory
 cloudcat -p s3://bucket/spark-output/ -i parquet -m all

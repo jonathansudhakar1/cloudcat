@@ -109,7 +109,7 @@ cloudcat -p gcs://my-bucket/data.csv
 cloudcat -p s3://my-bucket/analytics/events.parquet
 
 # Preview JSON data from Azure with pretty formatting
-cloudcat -p az://my-container/logs.json -o jsonp
+cloudcat -p abfss://my-container@account.dfs.core.windows.net/logs.json -o jsonp
 
 # Read Avro files from Kafka
 cloudcat -p s3://my-bucket/kafka-export.avro
@@ -118,7 +118,7 @@ cloudcat -p s3://my-bucket/kafka-export.avro
 cloudcat -p gcs://my-bucket/hive-table.orc
 
 # Read log files as plain text
-cloudcat -p az://logs/app.log -i text
+cloudcat -p abfss://logs@account.dfs.core.windows.net/app.log -i text
 
 # Read from a Spark output directory
 cloudcat -p s3://my-bucket/spark-output/ -i parquet
@@ -141,7 +141,6 @@ cloudcat -p gcs://bucket/data.csv --offset 100 -n 10
 |----------|------------|--------|
 | Google Cloud Storage | `gcs://` or `gs://` | ✅ Supported |
 | Amazon S3 | `s3://` | ✅ Supported |
-| Azure Blob Storage | `az://` or `azure://` | ✅ Supported |
 | Azure Data Lake Gen2 | `abfss://` | ✅ Supported |
 
 ### File Format Support
@@ -260,7 +259,7 @@ cloudcat -p s3://bucket/logs.csv --where "level=ERROR"
 # String matching filters
 cloudcat -p gcs://bucket/data.csv --where "name contains john"
 cloudcat -p s3://bucket/emails.json --where "email endswith @gmail.com"
-cloudcat -p az://logs/app.log --where "message startswith ERROR"
+cloudcat -p abfss://logs@account.dfs.core.windows.net/app.log --where "message startswith ERROR"
 
 # Skip first N rows (pagination)
 cloudcat -p gcs://bucket/data.csv --offset 100 -n 10
@@ -283,7 +282,7 @@ cloudcat -p gcs://bucket/events.parquet.zst
 cloudcat -p s3://bucket/data.csv.lz4
 
 # Bzip2 compressed (built-in)
-cloudcat -p az://container/archive.json.bz2
+cloudcat -p abfss://container@account.dfs.core.windows.net/archive.json.bz2
 ```
 
 ### Directory Operations
@@ -404,7 +403,7 @@ Usage: cloudcat [OPTIONS]
 Options:
   -p, --path TEXT              Cloud storage path (required)
                                Format: gcs://bucket/path, s3://bucket/path,
-                               or az://container/path
+                               or abfss://container@account.dfs.core.windows.net/path
 
   -o, --output-format TEXT     Output format: table, json, jsonp, csv
                                [default: table]
@@ -504,23 +503,24 @@ cloudcat -p s3://bucket/data.csv --profile production
 # Automatically detected
 ```
 
-### Azure Blob Storage
+### Azure Data Lake Storage Gen2
 
-CloudCat supports multiple authentication methods for Azure:
+CloudCat supports multiple authentication methods for Azure ADLS Gen2:
 
 ```bash
-# Option 1: Connection string (simplest)
-export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
+# Option 1: Access key (simplest)
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.csv --az-access-key "YOUR_KEY"
 
-# Option 2: Account URL with DefaultAzureCredential (for Azure AD auth)
-export AZURE_STORAGE_ACCOUNT_URL="https://youraccount.blob.core.windows.net"
+# Option 2: Access key via environment variable
+export AZURE_STORAGE_ACCESS_KEY="YOUR_KEY"
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.csv
+
+# Option 3: Azure CLI with DefaultAzureCredential
 az login
-
-# Option 3: Specify storage account via CLI option
-cloudcat -p az://container/data.csv --account mystorageaccount
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.csv
 ```
 
-**Path format:** `az://container-name/path/to/blob`
+**Path format:** `abfss://container@account.dfs.core.windows.net/path/to/file`
 
 ## Performance Tips
 

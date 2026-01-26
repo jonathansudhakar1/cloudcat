@@ -63,10 +63,7 @@ function generateNav() {
     { id: 'features', label: 'Features' },
     { id: 'installation', label: 'Installation' },
     { id: 'quickstart', label: 'Quick Start' },
-    { id: 'command-reference', label: 'CLI Reference' },
-    { id: 'authentication', label: 'Authentication' },
-    { id: 'use-cases', label: 'Use Cases' },
-    { id: 'troubleshooting', label: 'Troubleshooting' }
+    { id: 'command-reference', label: 'CLI Reference' }
   ];
 
   return navItems.map(item =>

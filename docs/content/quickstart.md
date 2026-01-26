@@ -11,8 +11,8 @@ cloudcat -p gcs://my-bucket/data.csv
 # From Amazon S3
 cloudcat -p s3://my-bucket/data.csv
 
-# From Azure Blob Storage
-cloudcat -p az://my-container/data.csv
+# From Azure Data Lake Storage Gen2
+cloudcat -p abfss://my-container@account.dfs.core.windows.net/data.csv
 ```
 
 ### Preview Parquet Files
@@ -35,7 +35,7 @@ cloudcat -p s3://my-bucket/config.json
 cloudcat -p gcs://my-bucket/events.jsonl
 
 # With pretty formatting
-cloudcat -p az://my-container/logs.json -o jsonp
+cloudcat -p abfss://my-container@account.dfs.core.windows.net/logs.json -o jsonp
 ```
 
 ### Select Specific Columns

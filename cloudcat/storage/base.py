@@ -48,7 +48,7 @@ def parse_cloud_path(path: str) -> Tuple[str, str, str]:
             bucket = netloc
         object_path = parsed.path.lstrip('/')
     else:
-        raise ValueError(f"Unsupported scheme: {parsed.scheme}. Use gcs://, s3://, az://, or abfss://")
+        raise ValueError(f"Unsupported scheme: {parsed.scheme}. Use gcs://, s3://, or abfss://")
 
     return service, bucket, object_path
 

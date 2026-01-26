@@ -146,7 +146,7 @@ cloudcat -p s3://destination/data.parquet -c id,value -n 100
 
 # Verify replication
 cloudcat -p gcs://primary/users.csv
-cloudcat -p az://backup/users.csv
+cloudcat -p abfss://backup@account.dfs.core.windows.net/users.csv
 ```
 
 ### Integration with Other Tools

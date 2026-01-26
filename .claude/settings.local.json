@@ -36,7 +36,9 @@
       "Bash(__NEW_LINE_a58d245cc501af35__ echo \"=== CSV Uncompressed ===\")",
       "Bash(pip3 list:*)",
       "Bash(pip3 uninstall:*)",
-      "Bash(nslookup:*)"
+      "Bash(nslookup:*)",
+      "Bash(node build.js:*)",
+      "Bash(python3:*)"
     ]
   },
   "enableAllProjectMcpServers": false

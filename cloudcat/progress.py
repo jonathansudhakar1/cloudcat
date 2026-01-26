@@ -46,9 +46,10 @@ class ProgressIndicator:
             self._thread.join(timeout=0.5)
             self._thread = None
 
-        # Clear the current line
-        sys.stderr.write('\r' + ' ' * 80 + '\r')
-        sys.stderr.flush()
+        # Clear the current line - use stdout since that's where output goes
+        # Use a wider clear to handle wide terminals
+        sys.stdout.write('\r' + ' ' * 120 + '\r')
+        sys.stdout.flush()
 
         # Show final message if provided
         if final_message:
@@ -66,11 +67,12 @@ class ProgressIndicator:
                 self._frame_index = (self._frame_index + 1) % len(self.SPINNER_FRAMES)
 
             # Write spinner and message, overwriting the line
+            # Use stdout to match the rest of the CLI output
             output = f'\r{Fore.CYAN}{frame}{Style.RESET_ALL} {message}'
             # Pad to clear any leftover characters from longer previous messages
-            output = output.ljust(80)
-            sys.stderr.write(output)
-            sys.stderr.flush()
+            output = output.ljust(120)
+            sys.stdout.write(output)
+            sys.stdout.flush()
 
             time.sleep(0.08)
 
