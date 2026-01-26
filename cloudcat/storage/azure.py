@@ -1,4 +1,4 @@
-"""Azure Blob Storage client and operations."""
+"""Azure Data Lake Storage Gen2 (ADLS Gen2) client and operations."""
 
 import io
 import os
@@ -9,117 +9,125 @@ from colorama import Fore, Style
 
 from ..config import cloud_config
 
-# Try to import Azure client
+# Try to import Azure Data Lake client
 try:
-    from azure.storage.blob import BlobServiceClient, ContainerClient
+    from azure.storage.filedatalake import DataLakeServiceClient
     HAS_AZURE = True
 except ImportError:
-    BlobServiceClient = None
-    ContainerClient = None
+    DataLakeServiceClient = None
     HAS_AZURE = False
 
 
-def get_azure_blob_service_client():
-    """Get an Azure BlobServiceClient with optional account configuration.
+def get_azure_datalake_service_client():
+    """Get an Azure DataLakeServiceClient with optional account configuration.
+
+    Authentication priority:
+    1. Access key (--az-access-key or AZURE_STORAGE_ACCESS_KEY env var)
+    2. DefaultAzureCredential (az login, managed identity, etc.)
 
     Returns:
-        azure.storage.blob.BlobServiceClient instance.
+        azure.storage.filedatalake.DataLakeServiceClient instance.
 
     Raises:
-        SystemExit: If azure-storage-blob is not installed.
+        SystemExit: If azure-storage-file-datalake is not installed.
         ValueError: If Azure credentials are not configured.
     """
     if not HAS_AZURE:
         sys.stderr.write(
-            Fore.RED + "Error: azure-storage-blob package is required for Azure access.\n" +
-            "Install it with: pip install azure-storage-blob\n" + Style.RESET_ALL
+            Fore.RED + "Error: azure-storage-file-datalake package is required for Azure access.\n" +
+            "Install it with: pip install azure-storage-file-datalake\n" + Style.RESET_ALL
         )
         sys.exit(1)
 
-    # Check for explicit account override
-    if cloud_config.azure_account:
-        account_url = f"https://{cloud_config.azure_account}.blob.core.windows.net"
-        from azure.identity import DefaultAzureCredential
-        credential = DefaultAzureCredential()
-        return BlobServiceClient(account_url=account_url, credential=credential)
-
-    # Fall back to environment variables
-    connection_string = os.environ.get('AZURE_STORAGE_CONNECTION_STRING')
-    account_url = os.environ.get('AZURE_STORAGE_ACCOUNT_URL')
-
-    if connection_string:
-        return BlobServiceClient.from_connection_string(connection_string)
-    elif account_url:
-        from azure.identity import DefaultAzureCredential
-        credential = DefaultAzureCredential()
-        return BlobServiceClient(account_url=account_url, credential=credential)
-    else:
+    # Get account name (set by abfss:// URL parsing)
+    account_name = cloud_config.azure_account
+    if not account_name:
         raise ValueError(
-            "Azure credentials not found. Use --account, or set "
-            "AZURE_STORAGE_CONNECTION_STRING or AZURE_STORAGE_ACCOUNT_URL environment variable."
+            "Azure storage account not found. Use abfss:// URL format: "
+            "abfss://container@account.dfs.core.windows.net/path"
         )
 
+    account_url = f"https://{account_name}.dfs.core.windows.net"
 
-def get_azure_stream(container_name: str, blob_name: str) -> io.BytesIO:
-    """Get a file stream from Azure Blob Storage.
+    # Check for access key (CLI option or environment variable)
+    access_key = cloud_config.azure_access_key or os.environ.get('AZURE_STORAGE_ACCESS_KEY')
+
+    if access_key:
+        # Use access key authentication
+        return DataLakeServiceClient(account_url=account_url, credential=access_key)
+    else:
+        # Fall back to DefaultAzureCredential (az login, managed identity, etc.)
+        from azure.identity import DefaultAzureCredential
+        credential = DefaultAzureCredential()
+        return DataLakeServiceClient(account_url=account_url, credential=credential)
+
+
+# Keep old function name as alias for backwards compatibility
+get_azure_blob_service_client = get_azure_datalake_service_client
+
+
+def get_azure_stream(container_name: str, file_path: str) -> io.BytesIO:
+    """Get a file stream from Azure Data Lake Storage Gen2.
 
     Args:
-        container_name: Azure container name.
-        blob_name: Blob path within the container.
+        container_name: Azure filesystem (container) name.
+        file_path: File path within the filesystem.
 
     Returns:
         BytesIO buffer containing the file content.
     """
-    blob_service_client = get_azure_blob_service_client()
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+    datalake_service_client = get_azure_datalake_service_client()
+    file_system_client = datalake_service_client.get_file_system_client(file_system=container_name)
+    file_client = file_system_client.get_file_client(file_path)
 
-    # Download blob to a BytesIO buffer
+    # Download file to a BytesIO buffer
     buffer = io.BytesIO()
-    download_stream = blob_client.download_blob()
-    buffer.write(download_stream.readall())
+    download = file_client.download_file()
+    buffer.write(download.readall())
     buffer.seek(0)
 
     return buffer
 
 
-def get_azure_file_size(container_name: str, blob_name: str) -> int:
-    """Get the size of an Azure blob without downloading it.
+def get_azure_file_size(container_name: str, file_path: str) -> int:
+    """Get the size of an Azure Data Lake file without downloading it.
 
     Args:
-        container_name: Azure container name.
-        blob_name: Blob path within the container.
+        container_name: Azure filesystem (container) name.
+        file_path: File path within the filesystem.
 
     Returns:
         File size in bytes.
     """
-    blob_service_client = get_azure_blob_service_client()
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
-    properties = blob_client.get_blob_properties()
+    datalake_service_client = get_azure_datalake_service_client()
+    file_system_client = datalake_service_client.get_file_system_client(file_system=container_name)
+    file_client = file_system_client.get_file_client(file_path)
+    properties = file_client.get_file_properties()
     return properties.size
 
 
 def list_azure_directory(container_name: str, prefix: str) -> List[Tuple[str, int]]:
-    """List files in an Azure Blob Storage container directory.
+    """List files in an Azure Data Lake Storage directory.
 
     Args:
-        container_name: Azure container name.
+        container_name: Azure filesystem (container) name.
         prefix: Directory prefix.
 
     Returns:
         List of (filename, size) tuples.
     """
-    blob_service_client = get_azure_blob_service_client()
-    container_client = blob_service_client.get_container_client(container_name)
+    datalake_service_client = get_azure_datalake_service_client()
+    file_system_client = datalake_service_client.get_file_system_client(file_system=container_name)
 
     # Ensure prefix ends with / to indicate a directory
     if prefix and not prefix.endswith('/'):
         prefix = prefix + '/'
 
-    # List blobs with the prefix
+    # List paths with the prefix
     file_list = []
-    blobs = container_client.list_blobs(name_starts_with=prefix)
-    for blob in blobs:
-        if not blob.name.endswith('/'):
-            file_list.append((blob.name, blob.size))
+    paths = file_system_client.get_paths(path=prefix.rstrip('/'))
+    for path in paths:
+        if not path.is_directory:
+            file_list.append((path.name, path.content_length))
 
     return file_list

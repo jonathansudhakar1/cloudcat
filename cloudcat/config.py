@@ -14,7 +14,8 @@ class CloudConfig:
         self.aws_profile: Optional[str] = None
         self.gcp_project: Optional[str] = None
         self.gcp_credentials: Optional[str] = None  # Path to service account JSON
-        self.azure_account: Optional[str] = None
+        self.azure_account: Optional[str] = None  # Extracted from abfss:// URL
+        self.azure_access_key: Optional[str] = None  # Storage account access key
 
     def reset(self) -> None:
         """Reset all configuration to defaults. Useful for testing."""
@@ -22,6 +23,7 @@ class CloudConfig:
         self.gcp_project = None
         self.gcp_credentials = None
         self.azure_account = None
+        self.azure_access_key = None
 
 
 # Global configuration instance

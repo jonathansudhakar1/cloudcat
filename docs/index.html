@@ -225,8 +225,11 @@
                 <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">
                     <img src="https://img.shields.io/pypi/pyversions/cloudcat.svg?style=flat-square&logo=python&logoColor=white" alt="Python versions">
                 </a>
-                <a href="https://pepy.tech/projects/cloudcat" target="_blank" rel="noopener">
-                    <img src="https://static.pepy.tech/personalized-badge/cloudcat?period=total&units=international_system&left_color=black&right_color=green&left_text=downloads" alt="PyPI Downloads">
+                <a href="https://pepy.tech/project/cloudcat" target="_blank" rel="noopener">
+                    <img src="https://static.pepy.tech/badge/cloudcat?style=flat-square" alt="Total Downloads">
+                </a>
+                <a href="https://pypi.org/project/cloudcat/" target="_blank" rel="noopener">
+                    <img src="https://img.shields.io/pypi/dm/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="Monthly Downloads">
                 </a>
                 <a href="https://github.com/jonathansudhakar1/cloudcat/releases" target="_blank" rel="noopener">
                     <img src="https://img.shields.io/github/downloads/jonathansudhakar1/cloudcat/total.svg?style=flat-square&logo=homebrew&logoColor=white&label=homebrew" alt="Homebrew Downloads">
@@ -356,18 +359,21 @@
 <td><code>az://</code> or <code>azure://</code></td>
 <td>Supported</td>
 </tr>
+<tr>
+<td>Azure Data Lake Gen2</td>
+<td><code>abfss://</code></td>
+<td>Supported</td>
+</tr>
 </tbody></table></div><h3>File Format Support</h3>
 <p>CloudCat automatically detects file formats from extensions and handles them appropriately:</p>
 <div class="table-wrapper"><table><thead><tr>
 <th>Format</th>
 <th>Read</th>
 <th>Auto-Detect</th>
-<th>Streaming</th>
 <th>Use Case</th>
 </tr>
 </thead><tbody><tr>
 <td>CSV</td>
-<td>Yes</td>
 <td>Yes</td>
 <td>Yes</td>
 <td>General data files</td>
@@ -376,12 +382,10 @@
 <td>JSON</td>
 <td>Yes</td>
 <td>Yes</td>
-<td>Yes</td>
 <td>API responses, configs</td>
 </tr>
 <tr>
 <td>JSON Lines</td>
-<td>Yes</td>
 <td>Yes</td>
 <td>Yes</td>
 <td>Log files, streaming data</td>
@@ -390,12 +394,10 @@
 <td>Parquet</td>
 <td>Yes</td>
 <td>Yes</td>
-<td>Yes</td>
 <td>Spark/analytics data</td>
 </tr>
 <tr>
 <td>Avro</td>
-<td>Yes</td>
 <td>Yes</td>
 <td>Yes</td>
 <td>Kafka, data pipelines</td>
@@ -404,12 +406,10 @@
 <td>ORC</td>
 <td>Yes</td>
 <td>Yes</td>
-<td>Yes</td>
 <td>Hive, Hadoop ecosystem</td>
 </tr>
 <tr>
 <td>Text</td>
-<td>Yes</td>
 <td>Yes</td>
 <td>Yes</td>
 <td>Log files, plain text</td>
@@ -418,10 +418,102 @@
 <td>TSV</td>
 <td>Yes</td>
 <td>Via <code>--delimiter</code></td>
-<td>Yes</td>
 <td>Tab-separated data</td>
 </tr>
-</tbody></table></div><h3>Compression Support</h3>
+</tbody></table></div><h3>Streaming Efficiency</h3>
+<p>CloudCat optimizes data transfer by streaming only necessary data when possible. This table shows what truly streams for reduced egress costs:</p>
+<div class="table-wrapper"><table><thead><tr>
+<th>Format</th>
+<th>Compression</th>
+<th>Streams</th>
+<th>Column Projection</th>
+<th>Early Row Stop</th>
+</tr>
+</thead><tbody><tr>
+<td>Parquet</td>
+<td>None/Internal</td>
+<td>✓</td>
+<td>✓ (range requests)</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Parquet</td>
+<td>External (.gz)</td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>ORC</td>
+<td>None/Internal</td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>ORC</td>
+<td>External (.gz)</td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>CSV</td>
+<td>None</td>
+<td>✓</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>CSV</td>
+<td>gzip/zstd/lz4/bz2</td>
+<td>✓</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>CSV</td>
+<td>snappy</td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>JSON Lines</td>
+<td>None/streamable</td>
+<td>✓</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>JSON Array</td>
+<td>Any</td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>Avro</td>
+<td>Any</td>
+<td>✓</td>
+<td>✓ (record-level)</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Text</td>
+<td>Any streamable</td>
+<td>✓</td>
+<td>N/A</td>
+<td>✓</td>
+</tr>
+</tbody></table></div><p><strong>Key:</strong></p>
+<ul>
+<li><strong>Streams</strong>: Data is read incrementally (low memory, stops early)</li>
+<li><strong>Column Projection</strong>: Only reads selected columns from storage</li>
+<li><strong>Early Row Stop</strong>: Stops reading when row limit (<code>-n</code>) is reached</li>
+</ul>
+<p><strong>Read Statistics</strong>: CloudCat shows file size vs data read at the bottom of output:</p>
+<div class="code-block"><pre><code class="hljs language-plaintext">File size: 1.2 GB | Data read: 45.2 MB (3.7%)</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Compression Support</h3>
 <p>CloudCat automatically detects and decompresses files based on extension:</p>
 <div class="table-wrapper"><table><thead><tr>
 <th>Format</th>
@@ -701,9 +793,9 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 <td>Schema display: <code>show</code>, <code>dont_show</code>, <code>schema_only</code></td>
 </tr>
 <tr>
-<td><code>--no-count</code></td>
+<td><code>--count</code></td>
 <td>false</td>
-<td>Disable automatic record counting</td>
+<td>Show total record count (scans entire file)</td>
 </tr>
 </tbody></table></div><h3>Directory Handling Options</h3>
 <div class="table-wrapper"><table><thead><tr>
@@ -1280,9 +1372,9 @@ cloudcat -p gcs://data/users.csv -c country -o csv -n 0 | <span class="hljs-buil
 <section id="performance" class="doc-section">
 <h2>Performance Tips</h2>
 <p>Optimize CloudCat for faster performance and lower data transfer costs.</p>
-<h3>1. Use --no-count for Large Files</h3>
-<p>By default, CloudCat counts total records in the file. For large files, skip this:</p>
-<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/huge-file.csv --no-count</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>This is especially helpful for CSV and JSON files where counting requires scanning the entire file.</p>
+<h3>1. Counting is Off by Default</h3>
+<p>CloudCat no longer counts total records by default, which speeds up operations and reduces data transfer. If you need the total count, use <code>--count</code>:</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat -p s3://bucket/huge-file.csv --count</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Note: Parquet files show instant record counts from metadata without extra scanning.</p>
 <h3>2. Prefer Parquet Format</h3>
 <p>Parquet files offer the best performance with CloudCat:</p>
 <ul>
@@ -1377,7 +1469,7 @@ cloudcat -p s3://bucket/huge.parquet -n 1000</code><button class="copy-btn" aria
 </tr>
 </thead><tbody><tr>
 <td>Fastest preview</td>
-<td><code>-n 10 --no-count</code></td>
+<td><code>-n 10</code> (counting is off by default)</td>
 </tr>
 <tr>
 <td>Check structure</td>
@@ -1483,13 +1575,13 @@ cloudcat -p az://container/logs -i json</code><button class="copy-btn" aria-labe
 <p>For slow connections or large files:</p>
 <ul>
 <li>Use <code>--num-rows</code> to limit data transfer</li>
-<li>Use <code>--no-count</code> to skip record counting</li>
+<li>Counting is off by default (use <code>--count</code> only if needed)</li>
 <li>Check network connectivity to the cloud provider</li>
 </ul>
 <h4>&quot;Connection reset&quot; errors</h4>
 <p>May indicate network instability. Try:</p>
-<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Smaller preview</span>
-cloudcat -p s3://bucket/file.csv -n 10 --no-count</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Memory Issues</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Smaller preview (counting is already off by default)</span>
+cloudcat -p s3://bucket/file.csv -n 10</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Memory Issues</h3>
 <h4>&quot;MemoryError&quot; or system slowdown</h4>
 <p>When previewing large files:</p>
 <div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Limit rows</span>

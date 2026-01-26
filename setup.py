@@ -30,7 +30,7 @@ setup(
         # Cloud providers (included by default)
         "google-cloud-storage>=2.0.0",
         "boto3>=1.18.0",
-        "azure-storage-blob>=12.0.0",
+        "azure-storage-file-datalake>=12.0.0",
         "azure-identity>=1.0.0",
     ],
     tests_require=[
@@ -60,10 +60,10 @@ setup(
     },
     author="Jonathan Sudhakar",
     author_email="jonathan@example.com",
-    description="Preview and analyze data files in Google Cloud Storage, AWS S3, and Azure Blob Storage from your terminal",
+    description="Preview and analyze data files in Google Cloud Storage, AWS S3, and Azure Data Lake Storage Gen2 from your terminal",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    keywords="cloud, gcs, s3, azure, cli, storage, data, parquet, csv, json, avro, orc, google-cloud, aws, azure-blob, data-engineering, etl, spark, bigquery, databricks, kafka, hive",
+    keywords="cloud, gcs, s3, azure, cli, storage, data, parquet, csv, json, avro, orc, google-cloud, aws, adls, datalake, data-engineering, etl, spark, bigquery, databricks, kafka, hive",
     project_urls={
         "Homepage": "https://github.com/jonathansudhakar1/cloudcat",
         "Documentation": "https://cloudcatcli.com",

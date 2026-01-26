@@ -9,7 +9,7 @@ def parse_cloud_path(path: str) -> Tuple[str, str, str]:
     """Parse a cloud storage path into service, bucket/container, and object components.
 
     Args:
-        path: Cloud storage URL (gcs://, s3://, az://, or abfss://).
+        path: Cloud storage URL (gcs://, s3://, or abfss://).
 
     Returns:
         Tuple of (service, bucket, object_path).

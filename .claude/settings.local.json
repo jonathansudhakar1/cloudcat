@@ -15,7 +15,18 @@
       "Bash(sips:*)",
       "Bash(identify:*)",
       "Bash(PYTHONPATH=/Users/jonathansudhakar/projects/cloudcat python -m pytest:*)",
-      "Bash(PYTHONPATH=. python -c:*)"
+      "Bash(PYTHONPATH=. python -c:*)",
+      "Bash(PYTHONPATH=. python:*)",
+      "Bash(cloudcat:*)",
+      "Bash(gsutil ls:*)",
+      "Bash(pip show:*)",
+      "Bash(/usr/local/lib/python3.10/site-packages/cloudcat/cli.py)",
+      "Bash(/usr/local/opt/python@3.10/bin/python3.10:*)",
+      "Bash(alias cloudcat='/usr/local/bin/cloudcat')",
+      "Bash(/usr/local/bin/cloudcat:*)",
+      "Bash(for format in parquet csv json avro orc text)",
+      "Bash(do for comp in uncompressed gzip bzip2 lz4 snappy zstd)",
+      "Bash(done)"
     ]
   },
   "enableAllProjectMcpServers": false

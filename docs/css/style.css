@@ -367,6 +367,7 @@ img {
     word-break: break-all;
     white-space: normal;
     text-align: left;
+    font-variant-ligatures: none;
 }
 
 .copy-btn {
@@ -484,6 +485,7 @@ img {
 
 .terminal-body code {
     color: var(--text-primary);
+    font-variant-ligatures: none;
 }
 
 .terminal-body .prompt {
@@ -659,6 +661,7 @@ img {
     font-family: var(--font-mono);
     font-size: 14px;
     line-height: 1.5;
+    font-variant-ligatures: none;
 }
 
 .code-block .copy-btn {
@@ -683,6 +686,7 @@ img {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-sm);
     color: var(--accent-primary);
+    font-variant-ligatures: none;
 }
 
 /* Tables */

@@ -29,6 +29,7 @@ from .compression import (
 )
 from .filtering import parse_where_clause, apply_where_filter
 from .formatters import colorize_json, format_table_with_colored_header
+from .progress import start_progress, update_progress, stop_progress
 from .storage import (
     parse_cloud_path,
     get_stream,
@@ -139,11 +140,13 @@ def get_files_for_multiread(
     total_size = 0
 
     for file_name, file_size in filtered_files:
+        # Check if adding this file would exceed the limit
+        # Always include at least the first file even if it exceeds the limit
+        if selected_files and total_size + file_size > max_size_bytes:
+            break
+
         selected_files.append((file_name, file_size))
         total_size += file_size
-
-        if total_size >= max_size_bytes:
-            break
 
     if not selected_files:
         raise ValueError(f"No suitable files found in {service}://{bucket}/{prefix}")
@@ -255,7 +258,8 @@ def read_data_from_multiple_files(
     num_rows: int,
     columns: Optional[str] = None,
     delimiter: Optional[str] = None,
-    offset: int = 0
+    offset: int = 0,
+    quiet: bool = False
 ) -> Tuple[pd.DataFrame, pd.Series, int]:
     """Read data from multiple files and concatenate the results.
 
@@ -268,6 +272,7 @@ def read_data_from_multiple_files(
         columns: Columns to select.
         delimiter: CSV delimiter.
         offset: Rows to skip.
+        quiet: Suppress progress messages.
 
     Returns:
         Tuple of (DataFrame, schema, total_rows).
@@ -278,16 +283,22 @@ def read_data_from_multiple_files(
     rows_skipped = 0
     total_rows = 0
 
-    def process_file(file_info, remaining_to_skip, remaining_to_read):
+    def process_file(file_info, remaining_to_skip, remaining_to_read, file_index, total_files):
         file_name, file_size = file_info
-        click.echo(Fore.BLUE + f"Reading file: {file_name} ({file_size/1024:.1f} KB)" + Style.RESET_ALL)
+        if not quiet:
+            click.echo(Fore.BLUE + f"Reading file: {file_name} ({file_size/1024:.1f} KB)" + Style.RESET_ALL)
+        else:
+            # Update progress indicator with current file
+            short_name = file_name.split('/')[-1]
+            update_progress(f"Reading file {file_index + 1}/{total_files}: {short_name}")
 
         stream = get_stream(service, bucket, file_name)
 
         # Check for compression and decompress if needed
         compression = detect_compression(file_name)
         if compression:
-            click.echo(Fore.BLUE + f"Detected {compression} compression, decompressing..." + Style.RESET_ALL)
+            if not quiet:
+                click.echo(Fore.BLUE + f"Detected {compression} compression, decompressing..." + Style.RESET_ALL)
             stream = decompress_stream(stream, compression)
 
         # Calculate how many rows to read from this file
@@ -314,10 +325,11 @@ def read_data_from_multiple_files(
     # Process files in order until we have enough rows
     remaining_offset = offset
     remaining_rows = num_rows if num_rows > 0 else float('inf')
+    total_files = len(file_list)
 
-    for file_info in file_list:
+    for file_index, file_info in enumerate(file_list):
         try:
-            df, schema, file_rows = process_file(file_info, remaining_offset, remaining_rows if remaining_rows != float('inf') else 0)
+            df, schema, file_rows = process_file(file_info, remaining_offset, remaining_rows if remaining_rows != float('inf') else 0, file_index, total_files)
 
             if not df.empty:
                 total_rows += len(df)
@@ -460,7 +472,8 @@ def read_data_streaming(
                 aws_profile=cloud_config.aws_profile,
                 gcp_project=cloud_config.gcp_project,
                 gcp_credentials=cloud_config.gcp_credentials,
-                azure_account=cloud_config.azure_account
+                azure_account=cloud_config.azure_account,
+                azure_access_key=cloud_config.azure_access_key
             )
             pyarrow_path = f"{bucket}/{object_path}"
 
@@ -709,7 +722,7 @@ def get_record_count_multiple_files(
 
 @click.command()
 @click.version_option(version=__version__, prog_name='cloudcat')
-@click.option('--path', '-p', required=True, help='Path to the file or directory (gcs://, s3://, or az://)')
+@click.option('--path', '-p', required=True, help='Path to the file or directory (gcs://, s3://, or abfss://)')
 @click.option('--output-format', '-o', type=click.Choice(['json', 'jsonp', 'csv', 'table']), default='table',
               help='Output format (default: table)')
 @click.option('--input-format', '-i', type=click.Choice(['json', 'csv', 'parquet', 'avro', 'orc', 'text']),
@@ -729,11 +742,11 @@ def get_record_count_multiple_files(
 @click.option('--profile', help='AWS profile name (for S3 access)')
 @click.option('--project', help='GCP project ID (for GCS access)')
 @click.option('--credentials', help='Path to GCP service account JSON file')
-@click.option('--account', help='Azure storage account name')
+@click.option('--az-access-key', help='Azure storage account access key')
 @click.option('--yes', '-y', is_flag=True, help='Skip confirmation prompts (for scripting)')
 def main(path, output_format, input_format, columns, num_rows, offset, where, schema, count,
-         multi_file_mode, max_size_mb, delimiter, profile, project, credentials, account, yes):
-    """Display data from files in Google Cloud Storage, AWS S3, or Azure Blob Storage.
+         multi_file_mode, max_size_mb, delimiter, profile, project, credentials, az_access_key, yes):
+    """Display data from files in Google Cloud Storage, AWS S3, or Azure Data Lake Storage Gen2.
 
     Supported formats: CSV, JSON, Parquet, Avro, ORC, and plain text.
     Supports compressed files: .gz, .zst, .lz4, .snappy, .bz2
@@ -749,8 +762,8 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
     cloudcat --path s3://my-bucket/data.parquet --columns id,name,value
 
     \b
-    # Read from Azure Blob Storage
-    cloudcat --path az://my-container/data.json --output-format jsonp
+    # Read from Azure Data Lake Storage Gen2
+    cloudcat --path abfss://container@account.dfs.core.windows.net/data.json --output-format jsonp
 
     \b
     # Read Avro files from Kafka exports
@@ -762,7 +775,7 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
 
     \b
     # Read log files as plain text
-    cloudcat --path az://logs/app.log --input-format text
+    cloudcat --path abfss://logs@account.dfs.core.windows.net/app.log --input-format text
 
     \b
     # Read from a directory (reads first non-empty data file)
@@ -804,8 +817,8 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
     cloudcat --path gcs://bucket/data.csv --credentials /path/to/service-account.json
 
     \b
-    # Use specific Azure storage account
-    cloudcat --path az://container/data.csv --account mystorageaccount
+    # Use Azure storage account access key
+    cloudcat --path abfss://container@account.dfs.core.windows.net/data.csv --az-access-key YOUR_KEY
     """
     try:
         # Configure cloud credentials from CLI options
@@ -815,8 +828,8 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
             cloud_config.gcp_project = project
         if credentials:
             cloud_config.gcp_credentials = credentials
-        if account:
-            cloud_config.azure_account = account
+        if az_access_key:
+            cloud_config.azure_access_key = az_access_key
 
         # Handle special characters in delimiter
         if delimiter == "\\t":
@@ -834,37 +847,44 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
 
         # Handle directory paths based on multi-file-mode
         if is_directory:
-            click.echo(Fore.BLUE + f"Path is a directory" + Style.RESET_ALL)
-
             if multi_file_mode == 'first' or (multi_file_mode == 'auto' and max_size_mb <= 0):
                 # Use a single file
-                click.echo(Fore.BLUE + f"Looking for first suitable file..." + Style.RESET_ALL)
+                start_progress("Listing files...")
                 object_path = find_first_non_empty_file(service, bucket, object_path, input_format)
 
                 # Determine input format if not specified
                 if not input_format:
                     input_format = detect_format_from_path(object_path)
-                    click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
+
+                # Get file name for display
+                file_name = object_path.split('/')[-1]
+                update_progress(f"Reading {file_name}...")
 
                 # Read the data from the single file with streaming
                 df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, num_rows, columns, delimiter, offset)
                 total_record_count = None  # Will be computed later if needed
+
+                # Stop progress and show format info
+                stop_progress()
+                click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
             else:
                 # Read from multiple files
-                click.echo(Fore.BLUE + f"Reading multiple files (up to {max_size_mb}MB)..." + Style.RESET_ALL)
+                start_progress("Listing files...")
 
                 # Determine input format if not specified (use the first file to infer)
                 if not input_format:
                     first_file = find_first_non_empty_file(service, bucket, object_path)
                     input_format = detect_format_from_path(first_file)
-                    click.echo(Fore.BLUE + f"Inferred input format from first file: {input_format}" + Style.RESET_ALL)
+
+                update_progress(f"Selecting {input_format} files...")
 
                 # Get files to read for preview (limited by max_size_mb)
-                file_list = get_files_for_multiread(service, bucket, object_path, input_format, max_size_mb)
+                file_list = get_files_for_multiread(service, bucket, object_path, input_format, max_size_mb, quiet=True)
 
-                # Read data from multiple files
+                # Read data from multiple files with progress updates
+                update_progress(f"Reading {len(file_list)} files...")
                 df, full_schema, rows_in_files = read_data_from_multiple_files(
-                    service, bucket, file_list, input_format, num_rows, columns, delimiter, offset
+                    service, bucket, file_list, input_format, num_rows, columns, delimiter, offset, quiet=True
                 )
 
                 # Calculate total size for stats
@@ -874,6 +894,7 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                 # For --count, get ALL files (not limited by max_size_mb)
                 # so we can count records across the entire directory
                 if count:
+                    stop_progress()
                     all_files = get_files_for_multiread(service, bucket, object_path, input_format, max_size_mb=999999, quiet=True)
                     all_files_size = sum(f[1] for f in all_files)
                     all_files_size_mb = all_files_size / (1024 * 1024)
@@ -889,7 +910,11 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                     # Update stats to reflect all files
                     streaming_stats.file_size = all_files_size
                 else:
+                    stop_progress()
                     multi_file_list = file_list
+
+                # Show format info
+                click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
 
                 # total_record_count will be computed later if --count is specified
                 total_record_count = None
@@ -904,9 +929,15 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                 input_format = detect_format_from_path(object_path)
                 click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
 
+            # Get file name for display
+            file_name = object_path.split('/')[-1]
+            start_progress(f"Reading {file_name}...")
+
             # Read the data with streaming
             df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, num_rows, columns, delimiter, offset)
             total_record_count = None  # Will be computed later if needed
+
+            stop_progress()
 
         # Apply WHERE filter if specified
         if where and not df.empty:

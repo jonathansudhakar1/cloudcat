@@ -29,7 +29,8 @@ def get_pyarrow_filesystem(
     aws_profile: Optional[str] = None,
     gcp_project: Optional[str] = None,
     gcp_credentials: Optional[str] = None,
-    azure_account: Optional[str] = None
+    azure_account: Optional[str] = None,
+    azure_access_key: Optional[str] = None
 ) -> Tuple[Any, str]:
     """Create a PyArrow filesystem for native cloud access.
 
@@ -42,6 +43,7 @@ def get_pyarrow_filesystem(
         gcp_project: GCP project ID for GCS.
         gcp_credentials: Path to GCP service account JSON for GCS.
         azure_account: Azure storage account name.
+        azure_access_key: Azure storage account access key.
 
     Returns:
         Tuple of (filesystem, path_prefix) where path_prefix is used
@@ -62,7 +64,7 @@ def get_pyarrow_filesystem(
     elif service == 'gcs':
         return _get_gcs_filesystem(gcp_project, gcp_credentials)
     elif service == 'azure':
-        return _get_azure_filesystem(azure_account)
+        return _get_azure_filesystem(azure_account, azure_access_key)
     else:
         raise ValueError(f"Unsupported service for PyArrow filesystem: {service}")
 
@@ -140,12 +142,14 @@ def _get_gcs_filesystem(
 
 
 def _get_azure_filesystem(
-    azure_account: Optional[str] = None
+    azure_account: Optional[str] = None,
+    azure_access_key: Optional[str] = None
 ) -> Tuple[Any, str]:
-    """Create PyArrow AzureFileSystem.
+    """Create PyArrow AzureFileSystem for ADLS Gen2.
 
     Args:
         azure_account: Azure storage account name.
+        azure_access_key: Azure storage account access key.
 
     Returns:
         Tuple of (AzureFileSystem, path_prefix).
@@ -156,16 +160,11 @@ def _get_azure_filesystem(
 
     if azure_account:
         kwargs['account_name'] = azure_account
-    else:
-        # Try to get from environment
-        account_url = os.environ.get('AZURE_STORAGE_ACCOUNT_URL')
-        if account_url:
-            # Extract account name from URL
-            # Format: https://<account>.blob.core.windows.net
-            import re
-            match = re.match(r'https://([^.]+)\.blob\.core\.windows\.net', account_url)
-            if match:
-                kwargs['account_name'] = match.group(1)
+
+    # Check for access key (parameter or environment variable)
+    access_key = azure_access_key or os.environ.get('AZURE_STORAGE_ACCESS_KEY')
+    if access_key:
+        kwargs['account_key'] = access_key
 
     filesystem = pa_fs.AzureFileSystem(**kwargs)
     return filesystem, ''
