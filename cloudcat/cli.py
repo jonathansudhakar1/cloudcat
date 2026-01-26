@@ -75,7 +75,8 @@ def get_files_for_multiread(
     bucket: str,
     prefix: str,
     input_format: Optional[str] = None,
-    max_size_mb: int = 25
+    max_size_mb: int = 25,
+    quiet: bool = False
 ) -> List[Tuple[str, int]]:
     """Get a list of files to read up to max_size_mb.
 
@@ -85,6 +86,7 @@ def get_files_for_multiread(
         prefix: Directory prefix.
         input_format: Optional format filter.
         max_size_mb: Maximum total size in MB.
+        quiet: If True, suppress progress messages.
 
     Returns:
         List of (filename, size) tuples.
@@ -147,8 +149,9 @@ def get_files_for_multiread(
         raise ValueError(f"No suitable files found in {service}://{bucket}/{prefix}")
 
     # Report on selected files
-    total_mb = total_size / (1024 * 1024)
-    click.echo(Fore.BLUE + f"Reading {len(selected_files)} files totaling {total_mb:.2f} MB" + Style.RESET_ALL)
+    if not quiet:
+        total_mb = total_size / (1024 * 1024)
+        click.echo(Fore.BLUE + f"Reading {len(selected_files)} files totaling {total_mb:.2f} MB" + Style.RESET_ALL)
 
     return selected_files
 
@@ -727,8 +730,9 @@ def get_record_count_multiple_files(
 @click.option('--project', help='GCP project ID (for GCS access)')
 @click.option('--credentials', help='Path to GCP service account JSON file')
 @click.option('--account', help='Azure storage account name')
+@click.option('--yes', '-y', is_flag=True, help='Skip confirmation prompts (for scripting)')
 def main(path, output_format, input_format, columns, num_rows, offset, where, schema, count,
-         multi_file_mode, max_size_mb, delimiter, profile, project, credentials, account):
+         multi_file_mode, max_size_mb, delimiter, profile, project, credentials, account, yes):
     """Display data from files in Google Cloud Storage, AWS S3, or Azure Blob Storage.
 
     Supported formats: CSV, JSON, Parquet, Avro, ORC, and plain text.
@@ -855,7 +859,7 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                     input_format = detect_format_from_path(first_file)
                     click.echo(Fore.BLUE + f"Inferred input format from first file: {input_format}" + Style.RESET_ALL)
 
-                # Get files to read
+                # Get files to read for preview (limited by max_size_mb)
                 file_list = get_files_for_multiread(service, bucket, object_path, input_format, max_size_mb)
 
                 # Read data from multiple files
@@ -867,13 +871,32 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                 total_size = sum(f[1] for f in file_list)
                 streaming_stats = StreamingStats(file_size=total_size, bytes_read=total_size, format_type=input_format)
 
-                # Store file_list for --count to use later
-                multi_file_list = file_list
+                # For --count, get ALL files (not limited by max_size_mb)
+                # so we can count records across the entire directory
+                if count:
+                    all_files = get_files_for_multiread(service, bucket, object_path, input_format, max_size_mb=999999, quiet=True)
+                    all_files_size = sum(f[1] for f in all_files)
+                    all_files_size_mb = all_files_size / (1024 * 1024)
+
+                    # Warn user about counting all files in directory
+                    if not yes:
+                        click.echo(Fore.YELLOW + f"\nWarning: --count will scan {len(all_files)} files ({all_files_size_mb:.1f} MB total)." + Style.RESET_ALL)
+                        if not click.confirm("Continue?", default=True):
+                            click.echo("Aborted.")
+                            return
+
+                    multi_file_list = all_files
+                    # Update stats to reflect all files
+                    streaming_stats.file_size = all_files_size
+                else:
+                    multi_file_list = file_list
+
                 # total_record_count will be computed later if --count is specified
                 total_record_count = None
 
                 # Update object_path for display/logging purposes
-                object_path = f"{object_path} ({len(file_list)} files)"
+                num_files_display = len(multi_file_list) if count else len(file_list)
+                object_path = f"{object_path} ({num_files_display} files)"
         else:
             # Single file path
             # Determine input format if not specified
@@ -942,6 +965,9 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                     else:
                         # Single file count
                         total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
+                    # Update stats to reflect full file was read for counting
+                    if streaming_stats:
+                        streaming_stats.bytes_read = streaming_stats.file_size
                 click.echo(Fore.CYAN + f"\nTotal records: {total_record_count:,}" + Style.RESET_ALL)
             except Exception as e:
                 click.echo(Fore.YELLOW + f"\nCould not count records: {str(e)}" + Style.RESET_ALL)
