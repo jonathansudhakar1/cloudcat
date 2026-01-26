@@ -538,7 +538,8 @@ def get_record_count(
     bucket: str,
     object_path: str,
     input_format: str,
-    delimiter: Optional[str] = None
+    delimiter: Optional[str] = None,
+    quiet: bool = False
 ):
     """Get record count from a file.
 
@@ -548,6 +549,7 @@ def get_record_count(
         object_path: Object path.
         input_format: Data format.
         delimiter: CSV delimiter.
+        quiet: If True, suppress progress messages.
 
     Returns:
         Record count (int) or "Unknown" on failure.
@@ -582,7 +584,8 @@ def get_record_count(
                 pass  # Ignore cleanup errors
     else:
         # For CSV and JSON, we need to count the rows
-        click.echo(Fore.YELLOW + "Counting records (this might take a while for large files)..." + Style.RESET_ALL)
+        if not quiet:
+            click.echo(Fore.YELLOW + "Counting records (this might take a while for large files)..." + Style.RESET_ALL)
 
         stream = get_stream(service, bucket, object_path)
         if compression:
@@ -663,6 +666,42 @@ def get_record_count(
             return len(content.splitlines())
 
         return "Unknown"
+
+
+def get_record_count_multiple_files(
+    service: str,
+    bucket: str,
+    file_list: List[Tuple[str, int]],
+    input_format: str,
+    delimiter: Optional[str] = None
+):
+    """Get total record count across multiple files.
+
+    Args:
+        service: Cloud service identifier.
+        bucket: Bucket or container name.
+        file_list: List of (filename, size) tuples.
+        input_format: Data format.
+        delimiter: CSV delimiter.
+
+    Returns:
+        Total record count (int) or "Unknown" on failure.
+    """
+    click.echo(Fore.YELLOW + f"Counting records across {len(file_list)} files..." + Style.RESET_ALL)
+    total_count = 0
+
+    for file_name, file_size in file_list:
+        try:
+            count = get_record_count(service, bucket, file_name, input_format, delimiter, quiet=True)
+            if isinstance(count, int):
+                total_count += count
+                click.echo(Fore.BLUE + f"  {file_name}: {count:,} records" + Style.RESET_ALL)
+            else:
+                click.echo(Fore.YELLOW + f"  {file_name}: {count}" + Style.RESET_ALL)
+        except Exception as e:
+            click.echo(Fore.YELLOW + f"  {file_name}: Error - {str(e)}" + Style.RESET_ALL)
+
+    return total_count
 
 
 @click.command()
@@ -787,6 +826,7 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
 
         # Initialize streaming stats
         streaming_stats = None
+        multi_file_list = None  # For directory reads with --count
 
         # Handle directory paths based on multi-file-mode
         if is_directory:
@@ -819,13 +859,18 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                 file_list = get_files_for_multiread(service, bucket, object_path, input_format, max_size_mb)
 
                 # Read data from multiple files
-                df, full_schema, total_record_count = read_data_from_multiple_files(
+                df, full_schema, rows_in_files = read_data_from_multiple_files(
                     service, bucket, file_list, input_format, num_rows, columns, delimiter, offset
                 )
 
                 # Calculate total size for stats
                 total_size = sum(f[1] for f in file_list)
                 streaming_stats = StreamingStats(file_size=total_size, bytes_read=total_size, format_type=input_format)
+
+                # Store file_list for --count to use later
+                multi_file_list = file_list
+                # total_record_count will be computed later if --count is specified
+                total_record_count = None
 
                 # Update object_path for display/logging purposes
                 object_path = f"{object_path} ({len(file_list)} files)"
@@ -860,8 +905,13 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
             if count:
                 try:
                     if total_record_count is None:
-                        total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
-                    click.echo(Fore.CYAN + f"Total records: {total_record_count}" + Style.RESET_ALL)
+                        if multi_file_list:
+                            total_record_count = get_record_count_multiple_files(
+                                service, bucket, multi_file_list, input_format, delimiter
+                            )
+                        else:
+                            total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
+                    click.echo(Fore.CYAN + f"Total records: {total_record_count:,}" + Style.RESET_ALL)
                 except Exception as e:
                     click.echo(Fore.YELLOW + f"Could not count records: {str(e)}" + Style.RESET_ALL)
             return
@@ -884,8 +934,15 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
         if count:
             try:
                 if total_record_count is None:
-                    total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
-                click.echo(Fore.CYAN + f"\nTotal records: {total_record_count}" + Style.RESET_ALL)
+                    if multi_file_list:
+                        # Count across all files in the directory
+                        total_record_count = get_record_count_multiple_files(
+                            service, bucket, multi_file_list, input_format, delimiter
+                        )
+                    else:
+                        # Single file count
+                        total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
+                click.echo(Fore.CYAN + f"\nTotal records: {total_record_count:,}" + Style.RESET_ALL)
             except Exception as e:
                 click.echo(Fore.YELLOW + f"\nCould not count records: {str(e)}" + Style.RESET_ALL)
 

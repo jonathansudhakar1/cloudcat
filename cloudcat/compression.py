@@ -33,6 +33,10 @@ except ImportError:
 def detect_compression(path: str) -> Optional[str]:
     """Detect compression type from file extension.
 
+    For Parquet and ORC files, snappy is an internal codec handled by PyArrow,
+    not external compression. Files like .parquet.snappy should be read directly
+    by PyArrow without external decompression.
+
     Args:
         path: File path to check for compression extension.
 
@@ -40,6 +44,12 @@ def detect_compression(path: str) -> Optional[str]:
         Compression type string ('gzip', 'zstd', 'lz4', 'snappy', 'bz2') or None.
     """
     path_lower = path.lower()
+
+    # For Parquet and ORC, snappy is an internal codec - PyArrow handles it
+    # Files like .parquet.snappy or .orc.snappy don't need external decompression
+    if path_lower.endswith('.parquet.snappy') or path_lower.endswith('.orc.snappy'):
+        return None
+
     if path_lower.endswith('.gz') or path_lower.endswith('.gzip'):
         return 'gzip'
     elif path_lower.endswith('.zst') or path_lower.endswith('.zstd'):
@@ -101,6 +111,9 @@ def decompress_stream(stream: Union[BinaryIO, bytes], compression: str) -> io.By
 def strip_compression_extension(path: str) -> str:
     """Remove compression extension from path to get the actual file extension.
 
+    For Parquet and ORC files with .snappy extension (e.g., .parquet.snappy),
+    snappy is an internal codec, so we strip .snappy to get .parquet.
+
     Args:
         path: File path that may have a compression extension.
 
@@ -108,6 +121,14 @@ def strip_compression_extension(path: str) -> str:
         Path with compression extension removed.
     """
     path_lower = path.lower()
+
+    # For .parquet.snappy and .orc.snappy, strip .snappy to get the format
+    # (snappy is internal codec, not external compression)
+    if path_lower.endswith('.parquet.snappy'):
+        return path[:-len('.snappy')]
+    if path_lower.endswith('.orc.snappy'):
+        return path[:-len('.snappy')]
+
     for ext in COMPRESSION_EXTENSIONS:
         if path_lower.endswith(ext):
             return path[:-len(ext)]

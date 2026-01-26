@@ -32,7 +32,18 @@ class TestCompressionDetection:
 
     def test_snappy_detection(self):
         assert detect_compression("data.csv.snappy") == "snappy"
-        assert detect_compression("path/to/file.PARQUET.SNAPPY") == "snappy"
+        assert detect_compression("data.json.snappy") == "snappy"
+
+    def test_parquet_snappy_is_internal_codec(self):
+        # For Parquet files, .snappy is an internal codec handled by PyArrow
+        # Not external compression - PyArrow reads these directly
+        assert detect_compression("path/to/file.parquet.snappy") is None
+        assert detect_compression("data.PARQUET.SNAPPY") is None
+
+    def test_orc_snappy_is_internal_codec(self):
+        # For ORC files, .snappy is an internal codec handled by PyArrow
+        assert detect_compression("path/to/file.orc.snappy") is None
+        assert detect_compression("data.ORC.SNAPPY") is None
 
     def test_bz2_detection(self):
         assert detect_compression("data.csv.bz2") == "bz2"
@@ -66,6 +77,18 @@ class TestStripCompressionExtension:
 
     def test_strip_snappy(self):
         assert strip_compression_extension("data.csv.snappy") == "data.csv"
+        assert strip_compression_extension("data.json.snappy") == "data.json"
+
+    def test_strip_parquet_snappy(self):
+        # For .parquet.snappy, strip .snappy to get .parquet format
+        # (snappy is internal codec, not external compression)
+        assert strip_compression_extension("data.parquet.snappy") == "data.parquet"
+        assert strip_compression_extension("path/to/file.PARQUET.SNAPPY") == "path/to/file.PARQUET"
+
+    def test_strip_orc_snappy(self):
+        # For .orc.snappy, strip .snappy to get .orc format
+        assert strip_compression_extension("data.orc.snappy") == "data.orc"
+        assert strip_compression_extension("path/to/file.ORC.SNAPPY") == "path/to/file.ORC"
 
     def test_strip_bz2(self):
         assert strip_compression_extension("data.csv.bz2") == "data.csv"
