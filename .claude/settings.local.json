@@ -26,7 +26,17 @@
       "Bash(/usr/local/bin/cloudcat:*)",
       "Bash(for format in parquet csv json avro orc text)",
       "Bash(do for comp in uncompressed gzip bzip2 lz4 snappy zstd)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(export:*)",
+      "Bash(__NEW_LINE_c9080ae7a45965c2__ echo \"=== CSV Uncompressed ===\")",
+      "Bash(__NEW_LINE_b7ebf0a472b5fcf4__ echo \"\")",
+      "Bash(__NEW_LINE_4a85e95868da8a85__ echo \"\")",
+      "Bash(__NEW_LINE_cfe162fe1089b605__ echo \"\")",
+      "Bash(__NEW_LINE_10c9112d2facf71d__ echo \"\")",
+      "Bash(__NEW_LINE_a58d245cc501af35__ echo \"=== CSV Uncompressed ===\")",
+      "Bash(pip3 list:*)",
+      "Bash(pip3 uninstall:*)",
+      "Bash(nslookup:*)"
     ]
   },
   "enableAllProjectMcpServers": false

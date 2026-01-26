@@ -164,7 +164,7 @@ class TestCLI:
     @patch('cloudcat.cli.parse_cloud_path')
     def test_directory_path_first_mode(self, mock_parse, mock_read, mock_find):
         mock_parse.return_value = ("gcs", "bucket", "folder/")
-        mock_find.return_value = "folder/data.csv"
+        mock_find.return_value = ("folder/data.csv", 1024)  # Now returns tuple (path, size)
         mock_df = pd.DataFrame({"name": ["John"], "age": [25]})
         mock_read.return_value = (mock_df, mock_df.dtypes, StreamingStats())
 
@@ -182,7 +182,7 @@ class TestCLI:
     @patch('cloudcat.cli.find_first_non_empty_file')
     def test_directory_path_all_mode(self, mock_find, mock_parse, mock_read_multi, mock_get_files):
         mock_parse.return_value = ("s3", "bucket", "folder/")
-        mock_find.return_value = "folder/data.csv"
+        mock_find.return_value = ("folder/data.csv", 1024)  # Now returns tuple (path, size)
         mock_get_files.return_value = [("file1.csv", 1024), ("file2.csv", 2048)]
         mock_df = pd.DataFrame({"name": ["John"], "age": [25]})
         mock_read_multi.return_value = (mock_df, mock_df.dtypes, 100)

@@ -163,8 +163,9 @@ def find_first_non_empty_file(
     service: str,
     bucket: str,
     prefix: str,
-    input_format: Optional[str] = None
-) -> str:
+    input_format: Optional[str] = None,
+    quiet: bool = False
+) -> Tuple[str, int]:
     """Find the first non-empty file in a directory that matches the input format.
 
     Args:
@@ -172,9 +173,10 @@ def find_first_non_empty_file(
         bucket: Bucket or container name.
         prefix: Directory prefix.
         input_format: Optional format filter.
+        quiet: If True, suppress output messages.
 
     Returns:
-        File path of the first suitable file.
+        Tuple of (file_path, file_size) for the first suitable file.
 
     Raises:
         ValueError: If no suitable files are found.
@@ -201,21 +203,24 @@ def find_first_non_empty_file(
             if matching_files:
                 # Use the first matching file
                 selected_file = matching_files[0]
-                click.echo(Fore.BLUE + f"Selected file: {selected_file[0]} ({selected_file[1]} bytes)" + Style.RESET_ALL)
-                return selected_file[0]
+                if not quiet:
+                    click.echo(Fore.BLUE + f"Selected file: {selected_file[0]} ({selected_file[1]} bytes)" + Style.RESET_ALL)
+                return selected_file[0], selected_file[1]
 
     # If no input_format specified or no matching files found, use the first non-empty file
     # Skip common metadata files
     for file_name, file_size in non_empty_files:
         # Skip if the file matches any of the patterns to ignore
         if not any(re.search(pattern, file_name) for pattern in SKIP_PATTERNS):
-            click.echo(Fore.BLUE + f"Selected file: {file_name} ({file_size} bytes)" + Style.RESET_ALL)
-            return file_name
+            if not quiet:
+                click.echo(Fore.BLUE + f"Selected file: {file_name} ({file_size} bytes)" + Style.RESET_ALL)
+            return file_name, file_size
 
     # If all files are skipped, use the first non-empty file anyway
     selected_file = non_empty_files[0]
-    click.echo(Fore.YELLOW + f"Only found metadata files, using: {selected_file[0]} ({selected_file[1]} bytes)" + Style.RESET_ALL)
-    return selected_file[0]
+    if not quiet:
+        click.echo(Fore.YELLOW + f"Only found metadata files, using: {selected_file[0]} ({selected_file[1]} bytes)" + Style.RESET_ALL)
+    return selected_file[0], selected_file[1]
 
 
 def detect_format_from_path(path: str) -> str:
@@ -838,8 +843,8 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
         # Parse the path
         service, bucket, object_path = parse_cloud_path(path)
 
-        # Check if path is a directory (ends with '/')
-        is_directory = object_path.endswith('/')
+        # Check if path is a directory (ends with '/' or is empty = bucket root)
+        is_directory = object_path.endswith('/') or object_path == ''
 
         # Initialize streaming stats
         streaming_stats = None
@@ -850,51 +855,83 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
             if multi_file_mode == 'first' or (multi_file_mode == 'auto' and max_size_mb <= 0):
                 # Use a single file
                 start_progress("Listing files...")
-                object_path = find_first_non_empty_file(service, bucket, object_path, input_format)
+
+                # Find first non-empty file (quiet during progress)
+                object_path, file_size = find_first_non_empty_file(service, bucket, object_path, input_format, quiet=True)
+                stop_progress()
+
+                # Show file selection info
+                click.echo(Fore.BLUE + f"Selected file: {object_path} ({file_size} bytes)" + Style.RESET_ALL)
 
                 # Determine input format if not specified
                 if not input_format:
                     input_format = detect_format_from_path(object_path)
+                click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
 
                 # Get file name for display
                 file_name = object_path.split('/')[-1]
-                update_progress(f"Reading {file_name}...")
+                start_progress(f"Reading {file_name}...")
 
                 # Read the data from the single file with streaming
                 df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, num_rows, columns, delimiter, offset)
                 total_record_count = None  # Will be computed later if needed
 
-                # Stop progress and show format info
+                # Stop progress
                 stop_progress()
-                click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
             else:
                 # Read from multiple files
                 start_progress("Listing files...")
 
-                # Determine input format if not specified (use the first file to infer)
-                if not input_format:
-                    first_file = find_first_non_empty_file(service, bucket, object_path)
-                    input_format = detect_format_from_path(first_file)
-
-                update_progress(f"Selecting {input_format} files...")
-
                 # Get files to read for preview (limited by max_size_mb)
+                # First, determine input format if not specified (use the first file to infer)
+                if not input_format:
+                    stop_progress()
+                    first_file, _ = find_first_non_empty_file(service, bucket, object_path, quiet=True)
+                    input_format = detect_format_from_path(first_file)
+                    start_progress(f"Selecting {input_format} files...")
+                else:
+                    update_progress(f"Selecting {input_format} files...")
+
                 file_list = get_files_for_multiread(service, bucket, object_path, input_format, max_size_mb, quiet=True)
 
-                # Read data from multiple files with progress updates
-                update_progress(f"Reading {len(file_list)} files...")
-                df, full_schema, rows_in_files = read_data_from_multiple_files(
-                    service, bucket, file_list, input_format, num_rows, columns, delimiter, offset, quiet=True
-                )
+                # For a single file with columnar format, use streaming read for efficiency
+                if len(file_list) == 1 and input_format in ('parquet', 'orc'):
+                    single_file_path = file_list[0][0]
+                    file_name = single_file_path.split('/')[-1]
+                    update_progress(f"Reading {file_name}...")
 
-                # Calculate total size for stats
-                total_size = sum(f[1] for f in file_list)
-                streaming_stats = StreamingStats(file_size=total_size, bytes_read=total_size, format_type=input_format)
+                    # Use streaming read which supports PyArrow native filesystem
+                    df, full_schema, streaming_stats = read_data_streaming(
+                        service, bucket, single_file_path, input_format, num_rows, columns, delimiter, offset
+                    )
+                    stop_progress()
+
+                    click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
+                    multi_file_list = file_list
+                    total_record_count = None
+                else:
+                    # Read data from multiple files with progress updates
+                    update_progress(f"Reading {len(file_list)} files...")
+                    df, full_schema, rows_in_files = read_data_from_multiple_files(
+                        service, bucket, file_list, input_format, num_rows, columns, delimiter, offset, quiet=True
+                    )
+
+                    # Stop progress before any output
+                    stop_progress()
+
+                    # Calculate total size for stats
+                    total_size = sum(f[1] for f in file_list)
+                    streaming_stats = StreamingStats(file_size=total_size, bytes_read=total_size, format_type=input_format)
+
+                    click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
+
+                    # total_record_count will be computed later if --count is specified
+                    total_record_count = None
+                    multi_file_list = file_list
 
                 # For --count, get ALL files (not limited by max_size_mb)
                 # so we can count records across the entire directory
                 if count:
-                    stop_progress()
                     all_files = get_files_for_multiread(service, bucket, object_path, input_format, max_size_mb=999999, quiet=True)
                     all_files_size = sum(f[1] for f in all_files)
                     all_files_size_mb = all_files_size / (1024 * 1024)
@@ -909,15 +946,6 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                     multi_file_list = all_files
                     # Update stats to reflect all files
                     streaming_stats.file_size = all_files_size
-                else:
-                    stop_progress()
-                    multi_file_list = file_list
-
-                # Show format info
-                click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
-
-                # total_record_count will be computed later if --count is specified
-                total_record_count = None
 
                 # Update object_path for display/logging purposes
                 num_files_display = len(multi_file_list) if count else len(file_list)
@@ -1008,6 +1036,7 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
             click.echo(Fore.BLUE + f"\n{streaming_stats.format_report()}" + Style.RESET_ALL)
 
     except Exception as e:
+        stop_progress()  # Make sure progress is stopped on error
         click.echo(Fore.RED + f"Error: {str(e)}" + Style.RESET_ALL, err=True)
         sys.exit(1)
 

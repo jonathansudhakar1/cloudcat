@@ -96,9 +96,10 @@ class TestFileFiltering:
             ("data2.csv", 2048)
         ]
 
-        first_file = find_first_non_empty_file("gcs", "bucket", "prefix")
+        file_path, file_size = find_first_non_empty_file("gcs", "bucket", "prefix", quiet=True)
 
-        assert first_file == "data1.csv"
+        assert file_path == "data1.csv"
+        assert file_size == 1024
 
     @patch('cloudcat.cli.list_directory')
     def test_find_first_non_empty_file_with_format_filter(self, mock_list_dir):
@@ -108,9 +109,10 @@ class TestFileFiltering:
             ("data3.parquet", 4096)
         ]
 
-        first_file = find_first_non_empty_file("gcs", "bucket", "prefix", input_format="json")
+        file_path, file_size = find_first_non_empty_file("gcs", "bucket", "prefix", input_format="json", quiet=True)
 
-        assert first_file == "data2.json"
+        assert file_path == "data2.json"
+        assert file_size == 2048
 
     @patch('cloudcat.cli.list_directory')
     def test_find_first_non_empty_file_azure(self, mock_list_dir):
@@ -119,9 +121,10 @@ class TestFileFiltering:
             ("data.csv", 1024)
         ]
 
-        first_file = find_first_non_empty_file("azure", "container", "prefix")
+        file_path, file_size = find_first_non_empty_file("azure", "container", "prefix", quiet=True)
 
-        assert first_file == "data.csv"
+        assert file_path == "data.csv"
+        assert file_size == 1024
 
     @patch('cloudcat.cli.list_directory')
     def test_get_files_for_multiread_no_files_raises_error(self, mock_list_dir):

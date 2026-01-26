@@ -89,11 +89,48 @@ region = us-west-2
 
 When running on AWS infrastructure (EC2, ECS, Lambda), CloudCat automatically uses the attached IAM role. No configuration needed.
 
-### Azure Blob Storage
+### Azure Data Lake Storage Gen2 (ADLS Gen2)
 
-CloudCat supports multiple authentication methods for Azure.
+CloudCat supports Azure Data Lake Storage Gen2 with multiple authentication methods.
 
-#### Option 1: Connection String (Simplest)
+#### Option 1: Storage Account Access Key (Simplest)
+
+Get your access key from Azure Portal: Storage Account → Security + networking → Access keys
+
+```bash
+# Pass directly to cloudcat
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet --az-access-key "YOUR_KEY"
+
+# Or set as environment variable
+export AZURE_STORAGE_ACCESS_KEY="YOUR_KEY"
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet
+```
+
+#### Option 2: Azure CLI (Development)
+
+Best for local development with Azure AD authentication:
+
+```bash
+# Install Azure CLI
+brew install azure-cli  # macOS
+# or: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash  # Linux
+
+# Login to Azure
+az login
+
+# If you have multiple subscriptions, set the active one
+az account set --subscription "Your Subscription Name"
+```
+
+**Important:** Your Azure AD account needs the **Storage Blob Data Reader** role (or Contributor) on the storage account. Assign this in Azure Portal: Storage Account → Access Control (IAM) → Add role assignment.
+
+Then use CloudCat:
+
+```bash
+cloudcat -p abfss://container@account.dfs.core.windows.net/path/data.parquet
+```
+
+#### Option 3: Connection String
 
 Set the full connection string:
 
@@ -101,29 +138,17 @@ Set the full connection string:
 export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
 ```
 
-#### Option 2: Azure AD Authentication
+#### Option 4: Service Principal (CI/CD)
 
-Use Azure CLI login with account URL:
-
-```bash
-# Set the account URL
-export AZURE_STORAGE_ACCOUNT_URL="https://youraccount.blob.core.windows.net"
-
-# Login with Azure CLI
-az login
-```
-
-CloudCat will use DefaultAzureCredential to authenticate.
-
-#### Option 3: Storage Account (CLI Option)
-
-Specify the storage account directly:
+For automated pipelines, use a service principal:
 
 ```bash
-cloudcat -p az://container/data.csv --account mystorageaccount
+export AZURE_TENANT_ID="your-tenant-id"
+export AZURE_CLIENT_ID="your-client-id"
+export AZURE_CLIENT_SECRET="your-client-secret"
 ```
 
-This requires either a connection string or Azure AD authentication to be configured.
+The service principal needs the **Storage Blob Data Reader** role on the storage account.
 
 ### Path Formats
 
@@ -131,7 +156,8 @@ This requires either a connection string or Azure AD authentication to be config
 |----------|------------|---------|
 | GCS | `gcs://bucket/path` or `gs://bucket/path` | `gcs://my-bucket/data/file.csv` |
 | S3 | `s3://bucket/path` | `s3://my-bucket/data/file.parquet` |
-| Azure | `az://container/path` or `azure://container/path` | `az://my-container/data/file.json` |
+| Azure ADLS Gen2 | `abfss://container@account.dfs.core.windows.net/path` | `abfss://data@myaccount.dfs.core.windows.net/folder/file.parquet` |
+| Azure Blob | `az://container/path` | `az://my-container/data/file.json` |
 
 ### Troubleshooting Authentication
 
@@ -150,13 +176,27 @@ export AWS_ACCESS_KEY_ID="..."
 export AWS_SECRET_ACCESS_KEY="..."
 ```
 
+**Azure: "AuthorizationPermissionMismatch" or "403 Forbidden"**
+
+This usually means your credentials don't have the right role. For Azure AD authentication (az login), you need the **Storage Blob Data Reader** role on the storage account, not just the subscription.
+
+```bash
+# Option 1: Use access key instead
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet --az-access-key "YOUR_KEY"
+
+# Option 2: Add role assignment in Azure Portal
+# Storage Account → Access Control (IAM) → Add role assignment
+# Role: Storage Blob Data Reader
+# Assign to: Your user or service principal
+```
+
 **Azure: "Azure credentials not found"**
 
 ```bash
-# Option 1: Set connection string
-export AZURE_STORAGE_CONNECTION_STRING="..."
+# Option 1: Use access key
+export AZURE_STORAGE_ACCESS_KEY="..."
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet
 
 # Option 2: Use Azure CLI
-export AZURE_STORAGE_ACCOUNT_URL="https://account.blob.core.windows.net"
 az login
 ```

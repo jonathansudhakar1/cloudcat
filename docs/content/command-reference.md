@@ -12,7 +12,7 @@ cloudcat [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `-p, --path TEXT` | Cloud storage path (required). Format: `gcs://bucket/path`, `s3://bucket/path`, or `az://container/path` |
+| `-p, --path TEXT` | Cloud storage path (required). Formats: `gcs://bucket/path`, `s3://bucket/path`, `az://container/path`, or `abfss://container@account.dfs.core.windows.net/path` |
 
 ### Output & Format Options
 
@@ -57,12 +57,13 @@ cloudcat [OPTIONS]
 | `--profile TEXT` | AWS profile name (for S3 access) |
 | `--project TEXT` | GCP project ID (for GCS access) |
 | `--credentials TEXT` | Path to GCP service account JSON file |
-| `--account TEXT` | Azure storage account name |
+| `--az-access-key TEXT` | Azure storage account access key |
 
 ### General Options
 
 | Option | Description |
 |--------|-------------|
+| `-y, --yes` | Skip confirmation prompts (for scripting) |
 | `--help` | Show help message and exit |
 
 ### Examples
@@ -97,4 +98,11 @@ cloudcat -p s3://bucket/data.csv --profile production
 
 # With GCP credentials
 cloudcat -p gcs://bucket/data.csv --credentials /path/to/key.json
+
+# Azure Data Lake Storage Gen2 with access key
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet --az-access-key "YOUR_KEY"
+
+# Azure with environment variable (no CLI option needed)
+export AZURE_STORAGE_ACCESS_KEY="YOUR_KEY"
+cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet
 ```
