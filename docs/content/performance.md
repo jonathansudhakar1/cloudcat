@@ -2,15 +2,15 @@
 
 Optimize CloudCat for faster performance and lower data transfer costs.
 
-### 1. Use --no-count for Large Files
+### 1. Counting is Off by Default
 
-By default, CloudCat counts total records in the file. For large files, skip this:
+CloudCat no longer counts total records by default, which speeds up operations and reduces data transfer. If you need the total count, use `--count`:
 
 ```bash
-cloudcat -p s3://bucket/huge-file.csv --no-count
+cloudcat -p s3://bucket/huge-file.csv --count
 ```
 
-This is especially helpful for CSV and JSON files where counting requires scanning the entire file.
+Note: Parquet files show instant record counts from metadata without extra scanning.
 
 ### 2. Prefer Parquet Format
 
@@ -129,7 +129,7 @@ cloudcat -p s3://bucket/huge.parquet -n 1000
 
 | Goal | Recommendation |
 |------|----------------|
-| Fastest preview | `-n 10 --no-count` |
+| Fastest preview | `-n 10` (counting is off by default) |
 | Check structure | `-s schema_only` |
 | Large directories | `-m first` |
 | Wide tables | `-c col1,col2,col3` |

@@ -161,7 +161,7 @@ Check that your credentials have the necessary permissions:
 For slow connections or large files:
 
 - Use `--num-rows` to limit data transfer
-- Use `--no-count` to skip record counting
+- Counting is off by default (use `--count` only if needed)
 - Check network connectivity to the cloud provider
 
 #### "Connection reset" errors
@@ -169,8 +169,8 @@ For slow connections or large files:
 May indicate network instability. Try:
 
 ```bash
-# Smaller preview
-cloudcat -p s3://bucket/file.csv -n 10 --no-count
+# Smaller preview (counting is already off by default)
+cloudcat -p s3://bucket/file.csv -n 10
 ```
 
 ### Memory Issues

@@ -69,6 +69,23 @@ def get_gcs_stream(bucket_name: str, object_name: str) -> io.BytesIO:
     return buffer
 
 
+def get_gcs_file_size(bucket_name: str, object_name: str) -> int:
+    """Get the size of a GCS object without downloading it.
+
+    Args:
+        bucket_name: GCS bucket name.
+        object_name: Object path within the bucket.
+
+    Returns:
+        File size in bytes.
+    """
+    client = get_gcs_client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(object_name)
+    blob.reload()  # Fetch metadata
+    return blob.size
+
+
 def list_gcs_directory(bucket_name: str, prefix: str) -> List[Tuple[str, int]]:
     """List files in a GCS directory.
 

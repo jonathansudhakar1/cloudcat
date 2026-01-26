@@ -46,3 +46,23 @@ class TestPathParsing:
         assert service == "gcs"
         assert bucket == "data-lake"
         assert object_path == "year=2023/month=12/day=01/data.parquet"
+
+    def test_az_path_parsing(self):
+        service, bucket, object_path = parse_cloud_path("az://mycontainer/path/to/file.csv")
+        assert service == "azure"
+        assert bucket == "mycontainer"
+        assert object_path == "path/to/file.csv"
+
+    def test_abfss_path_parsing(self):
+        """Test Azure Data Lake Storage Gen2 abfss:// scheme."""
+        service, bucket, object_path = parse_cloud_path("abfss://mycontainer@mystorageaccount.dfs.core.windows.net/path/to/file.parquet")
+        assert service == "azure"
+        assert bucket == "mycontainer"
+        assert object_path == "path/to/file.parquet"
+
+    def test_abfss_path_without_account(self):
+        """Test abfss:// with just container name."""
+        service, bucket, object_path = parse_cloud_path("abfss://mycontainer/path/to/file.csv")
+        assert service == "azure"
+        assert bucket == "mycontainer"
+        assert object_path == "path/to/file.csv"

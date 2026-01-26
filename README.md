@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://pypi.org/project/cloudcat/"><img src="https://img.shields.io/pypi/v/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="PyPI version"></a>
   <a href="https://pypi.org/project/cloudcat/"><img src="https://img.shields.io/pypi/pyversions/cloudcat.svg?style=flat-square&logo=python&logoColor=white" alt="Python versions"></a>
-  <a href="https://pypi.org/project/cloudcat/"><img src="https://img.shields.io/pypi/dm/cloudcat.svg?style=flat-square&logo=pypi&logoColor=white" alt="PyPI Downloads"></a>
+  <a href="https://pepy.tech/projects/cloudcat"><img src="https://static.pepy.tech/personalized-badge/cloudcat?period=total&units=international_system&left_color=black&right_color=green&left_text=downloads" alt="PyPI Downloads"></a>
   <a href="https://github.com/jonathansudhakar1/cloudcat/releases"><img src="https://img.shields.io/github/downloads/jonathansudhakar1/cloudcat/total.svg?style=flat-square&logo=homebrew&logoColor=white&label=homebrew" alt="Homebrew Downloads"></a>
   <a href="https://github.com/jonathansudhakar1/cloudcat/blob/main/LICENSE"><img src="https://img.shields.io/github/license/jonathansudhakar1/cloudcat.svg?style=flat-square" alt="License"></a>
 </p>
@@ -142,19 +142,42 @@ cloudcat -p gcs://bucket/data.csv --offset 100 -n 10
 | Google Cloud Storage | `gcs://` or `gs://` | ✅ Supported |
 | Amazon S3 | `s3://` | ✅ Supported |
 | Azure Blob Storage | `az://` or `azure://` | ✅ Supported |
+| Azure Data Lake Gen2 | `abfss://` | ✅ Supported |
 
 ### File Format Support
 
-| Format | Read | Auto-Detect | Streaming | Use Case |
-|--------|------|-------------|-----------|----------|
-| CSV | ✅ | ✅ | ✅ | General data files |
-| JSON | ✅ | ✅ | ✅ | API responses, configs |
-| JSON Lines | ✅ | ✅ | ✅ | Log files, streaming data |
-| Parquet | ✅ | ✅ | ✅ | Spark/analytics data |
-| Avro | ✅ | ✅ | ✅ | Kafka, data pipelines |
-| ORC | ✅ | ✅ | ✅ | Hive, Hadoop ecosystem |
-| Text | ✅ | ✅ | ✅ | Log files, plain text |
-| TSV | ✅ | Via `--delimiter` | ✅ | Tab-separated data |
+| Format | Auto-Detect | Use Case |
+|--------|-------------|----------|
+| CSV | ✅ | General data files |
+| JSON | ✅ | API responses, configs |
+| JSON Lines | ✅ | Log files, streaming data |
+| Parquet | ✅ | Spark/analytics data |
+| Avro | ✅ | Kafka, data pipelines |
+| ORC | ✅ | Hive, Hadoop ecosystem |
+| Text | ✅ | Log files, plain text |
+| TSV | Via `--delimiter` | Tab-separated data |
+
+### Streaming Efficiency
+
+CloudCat uses intelligent streaming to minimize data transfer and egress costs:
+
+| Format | Compression | Streams | Column Projection | Early Row Stop |
+|--------|-------------|---------|-------------------|----------------|
+| Parquet | None/Internal | ✅ | ✅ Range requests | ✅ |
+| Parquet | External (.gz) | ❌ | ❌ | ❌ |
+| ORC | None/Internal | ❌ | ❌ | ❌ |
+| ORC | External (.gz) | ❌ | ❌ | ❌ |
+| CSV | None | ✅ | ❌ | ✅ |
+| CSV | gzip/zstd/lz4/bz2 | ✅ | ❌ | ✅ |
+| CSV | snappy | ❌ | ❌ | ❌ |
+| JSON Lines | None/streamable | ✅ | ❌ | ✅ |
+| JSON Array | Any | ❌ | ❌ | ❌ |
+| Avro | Any | ✅ | ✅ Record-level | ✅ |
+| Text | Any streamable | ✅ | N/A | ✅ |
+
+- **Streams**: Only reads data as needed, stops early when row limit is reached
+- **Column Projection**: For Parquet, only fetches required column chunks via HTTP range requests
+- **Early Row Stop**: Stops reading when `--num-rows` limit is reached
 
 ### Compression Support
 
@@ -361,7 +384,7 @@ cloudcat -p s3://logs/errors/ -o json | grep "ERROR"
 cloudcat -p gcs://exports/daily/users.csv -s show
 
 # Verify record count
-cloudcat -p s3://warehouse/transactions.parquet --no-count
+cloudcat -p s3://warehouse/transactions.parquet --count
 ```
 
 #### Format Conversion
@@ -405,7 +428,7 @@ Options:
   -s, --schema TEXT            Schema display: show, dont_show, schema_only
                                [default: show]
 
-  --no-count                   Disable automatic record counting
+  --count                      Show total record count (scans entire file)
 
   -m, --multi-file-mode TEXT   Directory handling: auto, first, all
                                [default: auto]
@@ -501,7 +524,7 @@ cloudcat -p az://container/data.csv --account mystorageaccount
 
 ## Performance Tips
 
-1. **Use `--no-count`** for large files when you don't need the total record count
+1. **Counting is off by default** — use `--count` only when you need the total record count
 2. **Prefer Parquet** format when possible — record counts are instant from metadata
 3. **Use `--num-rows`** to limit data transfer for large files
 4. **Use `--columns`** to select only needed columns (especially effective with Parquet)

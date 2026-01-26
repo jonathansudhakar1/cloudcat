@@ -9,21 +9,50 @@ CloudCat is designed to make previewing cloud data effortless. Here's what it of
 | Google Cloud Storage | `gcs://` or `gs://` | Supported |
 | Amazon S3 | `s3://` | Supported |
 | Azure Blob Storage | `az://` or `azure://` | Supported |
+| Azure Data Lake Gen2 | `abfss://` | Supported |
 
 ### File Format Support
 
 CloudCat automatically detects file formats from extensions and handles them appropriately:
 
-| Format | Read | Auto-Detect | Streaming | Use Case |
-|--------|------|-------------|-----------|----------|
-| CSV | Yes | Yes | Yes | General data files |
-| JSON | Yes | Yes | Yes | API responses, configs |
-| JSON Lines | Yes | Yes | Yes | Log files, streaming data |
-| Parquet | Yes | Yes | Yes | Spark/analytics data |
-| Avro | Yes | Yes | Yes | Kafka, data pipelines |
-| ORC | Yes | Yes | Yes | Hive, Hadoop ecosystem |
-| Text | Yes | Yes | Yes | Log files, plain text |
-| TSV | Yes | Via `--delimiter` | Yes | Tab-separated data |
+| Format | Read | Auto-Detect | Use Case |
+|--------|------|-------------|----------|
+| CSV | Yes | Yes | General data files |
+| JSON | Yes | Yes | API responses, configs |
+| JSON Lines | Yes | Yes | Log files, streaming data |
+| Parquet | Yes | Yes | Spark/analytics data |
+| Avro | Yes | Yes | Kafka, data pipelines |
+| ORC | Yes | Yes | Hive, Hadoop ecosystem |
+| Text | Yes | Yes | Log files, plain text |
+| TSV | Yes | Via `--delimiter` | Tab-separated data |
+
+### Streaming Efficiency
+
+CloudCat optimizes data transfer by streaming only necessary data when possible. This table shows what truly streams for reduced egress costs:
+
+| Format | Compression | Streams | Column Projection | Early Row Stop |
+|--------|-------------|---------|-------------------|----------------|
+| Parquet | None/Internal | ✓ | ✓ (range requests) | ✓ |
+| Parquet | External (.gz) | ✗ | ✗ | ✗ |
+| ORC | None/Internal | ✗ | ✗ | ✗ |
+| ORC | External (.gz) | ✗ | ✗ | ✗ |
+| CSV | None | ✓ | ✗ | ✓ |
+| CSV | gzip/zstd/lz4/bz2 | ✓ | ✗ | ✓ |
+| CSV | snappy | ✗ | ✗ | ✗ |
+| JSON Lines | None/streamable | ✓ | ✗ | ✓ |
+| JSON Array | Any | ✗ | ✗ | ✗ |
+| Avro | Any | ✓ | ✓ (record-level) | ✓ |
+| Text | Any streamable | ✓ | N/A | ✓ |
+
+**Key:**
+- **Streams**: Data is read incrementally (low memory, stops early)
+- **Column Projection**: Only reads selected columns from storage
+- **Early Row Stop**: Stops reading when row limit (`-n`) is reached
+
+**Read Statistics**: CloudCat shows file size vs data read at the bottom of output:
+```
+File size: 1.2 GB | Data read: 45.2 MB (3.7%)
+```
 
 ### Compression Support
 

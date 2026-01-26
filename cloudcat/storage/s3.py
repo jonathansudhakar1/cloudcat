@@ -56,6 +56,21 @@ def get_s3_stream(bucket_name: str, object_name: str) -> BinaryIO:
     return response['Body']
 
 
+def get_s3_file_size(bucket_name: str, object_name: str) -> int:
+    """Get the size of an S3 object without downloading it.
+
+    Args:
+        bucket_name: S3 bucket name.
+        object_name: Object key within the bucket.
+
+    Returns:
+        File size in bytes.
+    """
+    s3 = get_s3_client()
+    response = s3.head_object(Bucket=bucket_name, Key=object_name)
+    return response['ContentLength']
+
+
 def list_s3_directory(bucket_name: str, prefix: str) -> List[Tuple[str, int]]:
     """List files in an S3 directory.
 

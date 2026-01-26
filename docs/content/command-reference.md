@@ -35,7 +35,7 @@ cloudcat [OPTIONS]
 |--------|---------|-------------|
 | `-w, --where TEXT` | none | Filter rows with SQL-like conditions |
 | `-s, --schema TEXT` | `show` | Schema display: `show`, `dont_show`, `schema_only` |
-| `--no-count` | false | Disable automatic record counting |
+| `--count` | false | Show total record count (scans entire file) |
 
 ### Directory Handling Options
 

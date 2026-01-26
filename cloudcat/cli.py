@@ -20,27 +20,47 @@ from . import __version__
 
 # Import from modular components
 from .config import cloud_config, SKIP_PATTERNS, FORMAT_EXTENSION_MAP
-from .compression import detect_compression, decompress_stream, strip_compression_extension
+from .compression import (
+    detect_compression,
+    decompress_stream,
+    strip_compression_extension,
+    get_streaming_decompressor,
+    supports_streaming_decompression,
+)
 from .filtering import parse_where_clause, apply_where_filter
 from .formatters import colorize_json, format_table_with_colored_header
 from .storage import (
     parse_cloud_path,
     get_stream,
     list_directory,
+    get_file_size,
 )
 from .storage.gcs import get_gcs_stream, list_gcs_directory
 from .storage.s3 import get_s3_stream, list_s3_directory
 from .storage.azure import get_azure_stream, list_azure_directory
 from .readers import (
     read_csv_data,
+    read_csv_data_streaming,
     read_json_data,
+    read_json_data_streaming,
     read_parquet_data,
+    read_parquet_data_streaming,
     read_avro_data,
+    read_avro_data_streaming,
     read_orc_data,
+    read_orc_data_streaming,
     read_text_data,
+    read_text_data_streaming,
     HAS_PARQUET,
     HAS_AVRO,
     HAS_ORC,
+)
+from .streaming import (
+    StreamingStats,
+    format_bytes,
+    BytesTrackingStream,
+    get_pyarrow_filesystem,
+    supports_pyarrow_fs,
 )
 
 # Import pyarrow for parquet metadata if available
@@ -362,7 +382,7 @@ def read_data(
     delimiter: Optional[str] = None,
     offset: int = 0
 ) -> Tuple[pd.DataFrame, pd.Series]:
-    """Read data from cloud storage.
+    """Read data from cloud storage (legacy interface).
 
     Args:
         service: Cloud service identifier.
@@ -377,31 +397,128 @@ def read_data(
     Returns:
         Tuple of (DataFrame, schema).
     """
-    # Get appropriate stream based on service
-    stream = get_stream(service, bucket, object_path)
+    df, schema, _ = read_data_streaming(
+        service, bucket, object_path, input_format,
+        num_rows, columns, delimiter, offset
+    )
+    return df, schema
 
-    # Check for compression and decompress if needed
+
+def read_data_streaming(
+    service: str,
+    bucket: str,
+    object_path: str,
+    input_format: str,
+    num_rows: int,
+    columns: Optional[str] = None,
+    delimiter: Optional[str] = None,
+    offset: int = 0
+) -> Tuple[pd.DataFrame, pd.Series, StreamingStats]:
+    """Read data from cloud storage with streaming support.
+
+    Uses PyArrow native filesystems for columnar formats (Parquet, ORC)
+    to enable true column projection with range requests. Uses streaming
+    decompression and chunked reading for row-based formats.
+
+    Args:
+        service: Cloud service identifier.
+        bucket: Bucket or container name.
+        object_path: Object path.
+        input_format: Data format.
+        num_rows: Maximum rows to read.
+        columns: Columns to select.
+        delimiter: CSV delimiter.
+        offset: Rows to skip.
+
+    Returns:
+        Tuple of (DataFrame, schema, StreamingStats).
+    """
+    # Get file size for stats
+    try:
+        file_size = get_file_size(service, bucket, object_path)
+    except Exception:
+        file_size = 0
+
+    # Initialize stats
+    stats = StreamingStats(file_size=file_size, format_type=input_format)
+
+    # Check for compression
     compression = detect_compression(object_path)
-    if compression:
-        click.echo(Fore.BLUE + f"Detected {compression} compression, decompressing..." + Style.RESET_ALL)
-        stream = decompress_stream(stream, compression)
+    stats.compression = compression
 
     # Calculate how many rows to read including offset
     rows_to_read = (offset + num_rows) if num_rows > 0 else 0
 
-    # Read based on format
+    # For columnar formats without external compression, try native PyArrow filesystem
+    if input_format in ('parquet', 'orc') and compression is None and supports_pyarrow_fs():
+        try:
+            pyarrow_fs, _ = get_pyarrow_filesystem(
+                service,
+                aws_profile=cloud_config.aws_profile,
+                gcp_project=cloud_config.gcp_project,
+                gcp_credentials=cloud_config.gcp_credentials,
+                azure_account=cloud_config.azure_account
+            )
+            pyarrow_path = f"{bucket}/{object_path}"
+
+            if input_format == 'parquet':
+                df, schema, stats = read_parquet_data_streaming(
+                    num_rows=rows_to_read,
+                    columns=columns,
+                    stats=stats,
+                    pyarrow_fs=pyarrow_fs,
+                    pyarrow_path=pyarrow_path
+                )
+            else:  # orc
+                df, schema, stats = read_orc_data_streaming(
+                    num_rows=rows_to_read,
+                    columns=columns,
+                    stats=stats,
+                    pyarrow_fs=pyarrow_fs,
+                    pyarrow_path=pyarrow_path
+                )
+
+            # Apply offset
+            if offset > 0 and not df.empty:
+                if offset >= len(df):
+                    click.echo(Fore.YELLOW + f"Warning: Offset ({offset}) >= total rows read ({len(df)}). No data to display." + Style.RESET_ALL)
+                    df = df.iloc[0:0]
+                else:
+                    df = df.iloc[offset:].reset_index(drop=True)
+
+            return df, schema, stats
+
+        except Exception as e:
+            # Fall back to stream-based approach
+            click.echo(Fore.YELLOW + f"Native filesystem unavailable, using stream: {str(e)}" + Style.RESET_ALL)
+
+    # Get stream for non-native filesystem approach
+    stream = get_stream(service, bucket, object_path)
+
+    # Handle compression with streaming decompression where possible
+    if compression:
+        if supports_streaming_decompression(compression):
+            click.echo(Fore.BLUE + f"Detected {compression} compression, streaming decompression..." + Style.RESET_ALL)
+            stream, is_streaming = get_streaming_decompressor(stream, compression)
+            stats.is_streaming = is_streaming
+        else:
+            click.echo(Fore.BLUE + f"Detected {compression} compression, decompressing..." + Style.RESET_ALL)
+            stream = decompress_stream(stream, compression)
+            stats.is_streaming = False
+
+    # Read based on format using streaming readers
     if input_format == 'csv':
-        df, schema = read_csv_data(stream, rows_to_read, columns, delimiter)
+        df, schema, stats = read_csv_data_streaming(stream, rows_to_read, columns, delimiter, stats)
     elif input_format == 'json':
-        df, schema = read_json_data(stream, rows_to_read, columns)
+        df, schema, stats = read_json_data_streaming(stream, rows_to_read, columns, stats)
     elif input_format == 'parquet':
-        df, schema = read_parquet_data(stream, rows_to_read, columns)
+        df, schema, stats = read_parquet_data_streaming(stream=stream, num_rows=rows_to_read, columns=columns, stats=stats)
     elif input_format == 'avro':
-        df, schema = read_avro_data(stream, rows_to_read, columns)
+        df, schema, stats = read_avro_data_streaming(stream, rows_to_read, columns, stats)
     elif input_format == 'orc':
-        df, schema = read_orc_data(stream, rows_to_read, columns)
+        df, schema, stats = read_orc_data_streaming(stream=stream, num_rows=rows_to_read, columns=columns, stats=stats)
     elif input_format == 'text':
-        df, schema = read_text_data(stream, rows_to_read, columns)
+        df, schema, stats = read_text_data_streaming(stream, rows_to_read, columns, stats)
     else:
         raise ValueError(f"Unsupported format: {input_format}")
 
@@ -409,11 +526,11 @@ def read_data(
     if offset > 0 and not df.empty:
         if offset >= len(df):
             click.echo(Fore.YELLOW + f"Warning: Offset ({offset}) >= total rows read ({len(df)}). No data to display." + Style.RESET_ALL)
-            df = df.iloc[0:0]  # Empty dataframe with same schema
+            df = df.iloc[0:0]
         else:
             df = df.iloc[offset:].reset_index(drop=True)
 
-    return df, schema
+    return df, schema, stats
 
 
 def get_record_count(
@@ -561,7 +678,7 @@ def get_record_count(
 @click.option('--where', '-w', help='Filter rows (e.g., "status=active", "age>30", "name contains john")')
 @click.option('--schema', '-s', type=click.Choice(['show', 'dont_show', 'schema_only']), default='show',
               help='Schema display option (default: show)')
-@click.option('--no-count', is_flag=True, help='Disable record count display')
+@click.option('--count', is_flag=True, help='Show total record count (requires scanning entire file)')
 @click.option('--multi-file-mode', '-m', type=click.Choice(['first', 'auto', 'all']), default='auto',
               help='How to handle directories with multiple files (default: auto)')
 @click.option('--max-size-mb', default=25, type=int,
@@ -571,7 +688,7 @@ def get_record_count(
 @click.option('--project', help='GCP project ID (for GCS access)')
 @click.option('--credentials', help='Path to GCP service account JSON file')
 @click.option('--account', help='Azure storage account name')
-def main(path, output_format, input_format, columns, num_rows, offset, where, schema, no_count,
+def main(path, output_format, input_format, columns, num_rows, offset, where, schema, count,
          multi_file_mode, max_size_mb, delimiter, profile, project, credentials, account):
     """Display data from files in Google Cloud Storage, AWS S3, or Azure Blob Storage.
 
@@ -668,6 +785,9 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
         # Check if path is a directory (ends with '/')
         is_directory = object_path.endswith('/')
 
+        # Initialize streaming stats
+        streaming_stats = None
+
         # Handle directory paths based on multi-file-mode
         if is_directory:
             click.echo(Fore.BLUE + f"Path is a directory" + Style.RESET_ALL)
@@ -682,8 +802,8 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                     input_format = detect_format_from_path(object_path)
                     click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
 
-                # Read the data from the single file
-                df, full_schema = read_data(service, bucket, object_path, input_format, num_rows, columns, delimiter, offset)
+                # Read the data from the single file with streaming
+                df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, num_rows, columns, delimiter, offset)
                 total_record_count = None  # Will be computed later if needed
             else:
                 # Read from multiple files
@@ -703,6 +823,10 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                     service, bucket, file_list, input_format, num_rows, columns, delimiter, offset
                 )
 
+                # Calculate total size for stats
+                total_size = sum(f[1] for f in file_list)
+                streaming_stats = StreamingStats(file_size=total_size, bytes_read=total_size, format_type=input_format)
+
                 # Update object_path for display/logging purposes
                 object_path = f"{object_path} ({len(file_list)} files)"
         else:
@@ -712,8 +836,8 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                 input_format = detect_format_from_path(object_path)
                 click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
 
-            # Read the data
-            df, full_schema = read_data(service, bucket, object_path, input_format, num_rows, columns, delimiter, offset)
+            # Read the data with streaming
+            df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, num_rows, columns, delimiter, offset)
             total_record_count = None  # Will be computed later if needed
 
         # Apply WHERE filter if specified
@@ -732,8 +856,8 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
 
         # Exit if only schema was requested
         if schema == 'schema_only':
-            # Still show count even with schema_only unless --no-count is specified
-            if not no_count:
+            # Show count only if --count flag is specified
+            if count:
                 try:
                     if total_record_count is None:
                         total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
@@ -756,14 +880,18 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
         elif output_format == 'csv':
             click.echo(df.to_csv(index=False))
 
-        # Count records by default unless --no-count is specified
-        if not no_count:
+        # Show record count only if --count flag is specified
+        if count:
             try:
                 if total_record_count is None:
                     total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
                 click.echo(Fore.CYAN + f"\nTotal records: {total_record_count}" + Style.RESET_ALL)
             except Exception as e:
                 click.echo(Fore.YELLOW + f"\nCould not count records: {str(e)}" + Style.RESET_ALL)
+
+        # Display streaming stats footer
+        if streaming_stats and streaming_stats.file_size > 0:
+            click.echo(Fore.BLUE + f"\n{streaming_stats.format_report()}" + Style.RESET_ALL)
 
     except Exception as e:
         click.echo(Fore.RED + f"Error: {str(e)}" + Style.RESET_ALL, err=True)

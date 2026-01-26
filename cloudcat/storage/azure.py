@@ -82,6 +82,22 @@ def get_azure_stream(container_name: str, blob_name: str) -> io.BytesIO:
     return buffer
 
 
+def get_azure_file_size(container_name: str, blob_name: str) -> int:
+    """Get the size of an Azure blob without downloading it.
+
+    Args:
+        container_name: Azure container name.
+        blob_name: Blob path within the container.
+
+    Returns:
+        File size in bytes.
+    """
+    blob_service_client = get_azure_blob_service_client()
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+    properties = blob_client.get_blob_properties()
+    return properties.size
+
+
 def list_azure_directory(container_name: str, prefix: str) -> List[Tuple[str, int]]:
     """List files in an Azure Blob Storage container directory.
 
