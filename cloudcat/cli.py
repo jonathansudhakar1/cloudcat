@@ -894,13 +894,13 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
 
                 file_list = get_files_for_multiread(service, bucket, object_path, input_format, max_size_mb, quiet=True)
 
-                # For a single file with columnar format, use streaming read for efficiency
-                if len(file_list) == 1 and input_format in ('parquet', 'orc'):
+                # For a single file, use streaming read for efficiency
+                if len(file_list) == 1:
                     single_file_path = file_list[0][0]
                     file_name = single_file_path.split('/')[-1]
                     update_progress(f"Reading {file_name}...")
 
-                    # Use streaming read which supports PyArrow native filesystem
+                    # Use streaming read for all formats
                     df, full_schema, streaming_stats = read_data_streaming(
                         service, bucket, single_file_path, input_format, num_rows, columns, delimiter, offset
                     )
@@ -909,7 +909,7 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                     click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
                     multi_file_list = file_list
                     total_record_count = None
-                else:
+                elif len(file_list) > 1:
                     # Read data from multiple files with progress updates
                     update_progress(f"Reading {len(file_list)} files...")
                     df, full_schema, rows_in_files = read_data_from_multiple_files(

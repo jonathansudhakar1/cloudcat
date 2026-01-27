@@ -40,25 +40,6 @@ CloudCat is actively developed. Here's what's been accomplished and what's plann
 - **Watch mode** - Monitor file changes
 - **Plugins** - Custom reader/writer plugins
 
-### Version History
-
-**v0.2.2** (Current)
-- Bug fixes and improvements
-- Homebrew support for Apple Silicon
-
-**v0.2.0**
-- Azure Blob Storage support
-- Avro and ORC format support
-- WHERE clause filtering
-- Row offset/pagination
-- Compression support (zstd, lz4, snappy)
-
-**v0.1.0**
-- Initial release
-- GCS and S3 support
-- CSV, JSON, Parquet formats
-- Basic functionality
-
 ### Contributing to the Roadmap
 
 Have a feature idea? We'd love to hear it!
