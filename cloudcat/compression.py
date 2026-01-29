@@ -46,8 +46,9 @@ def detect_compression(path: str) -> Optional[str]:
     path_lower = path.lower()
 
     # For Parquet and ORC, snappy is an internal codec - PyArrow handles it
-    # Files like .parquet.snappy or .orc.snappy don't need external decompression
-    if path_lower.endswith('.parquet.snappy') or path_lower.endswith('.orc.snappy'):
+    # Files like .snappy.parquet (Spark convention) or .parquet.snappy don't need external decompression
+    if (path_lower.endswith('.snappy.parquet') or path_lower.endswith('.parquet.snappy') or
+        path_lower.endswith('.snappy.orc') or path_lower.endswith('.orc.snappy')):
         return None
 
     if path_lower.endswith('.gz') or path_lower.endswith('.gzip'):
@@ -122,8 +123,11 @@ def strip_compression_extension(path: str) -> str:
     """
     path_lower = path.lower()
 
-    # For .parquet.snappy and .orc.snappy, strip .snappy to get the format
-    # (snappy is internal codec, not external compression)
+    # For Parquet/ORC with snappy naming conventions, snappy is internal codec
+    # .snappy.parquet (Spark) - already ends in .parquet, return as-is
+    # .parquet.snappy - strip .snappy to get .parquet
+    if path_lower.endswith('.snappy.parquet') or path_lower.endswith('.snappy.orc'):
+        return path  # Already ends with format extension
     if path_lower.endswith('.parquet.snappy'):
         return path[:-len('.snappy')]
     if path_lower.endswith('.orc.snappy'):

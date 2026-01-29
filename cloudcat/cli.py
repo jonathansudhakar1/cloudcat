@@ -470,7 +470,12 @@ def read_data_streaming(
     rows_to_read = (offset + num_rows) if num_rows > 0 else 0
 
     # For columnar formats without external compression, try native PyArrow filesystem
-    if input_format in ('parquet', 'orc') and compression is None and supports_pyarrow_fs():
+    use_native_fs = input_format in ('parquet', 'orc') and compression is None
+    if use_native_fs and not supports_pyarrow_fs():
+        click.echo(Fore.YELLOW + "Note: pyarrow.fs not available, downloading full file instead of streaming" + Style.RESET_ALL)
+        use_native_fs = False
+
+    if use_native_fs:
         try:
             pyarrow_fs, _ = get_pyarrow_filesystem(
                 service,

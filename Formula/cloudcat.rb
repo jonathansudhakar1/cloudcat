@@ -9,12 +9,12 @@ class Cloudcat < Formula
       url "https://github.com/jonathansudhakar1/cloudcat/releases/download/v0.3.6/cloudcat-0.3.6-macos-arm64.tar.gz"
       sha256 "0171fda48379bb1239057dd3839d8a161f7037be56dc336c7fdf7851e6bf4629"
     end
-    on_intel do
-      odie "Intel Macs are not supported. Please use: pip install 'cloudcat[all]'"
-    end
   end
 
   def install
+    if Hardware::CPU.intel?
+      odie "Intel Macs are not supported. Please use: pip install 'cloudcat[all]'"
+    end
     # Install all extracted files to libexec
     libexec.install Dir["*"]
     # Create a symlink in bin
