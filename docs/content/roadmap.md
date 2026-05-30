@@ -19,11 +19,11 @@ CloudCat is actively developed. Here's what's been accomplished and what's plann
 - [x] **Schema inspection** - View data types
 - [x] **Multi-file directories** - Spark/Hive output support
 - [x] **Multiple output formats** - table, json, jsonp, csv
+- [x] **Output to file** - Direct `--output-file` option
 
 ### Planned Features
 
 - [ ] **Interactive mode** - Pagination with keyboard navigation
-- [ ] **Output to file** - Direct `--output-file` option
 - [ ] **Configuration file** - `.cloudcatrc` for defaults
 - [ ] **Multiple WHERE conditions** - AND/OR operators
 - [ ] **Sampling** - Random row sampling

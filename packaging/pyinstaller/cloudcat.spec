@@ -4,7 +4,8 @@
 This spec file bundles cloudcat with all dependencies including:
 - Python interpreter
 - pandas, pyarrow (for data handling)
-- google-cloud-storage, boto3, azure-storage-blob (cloud providers)
+- google-cloud-storage, boto3, azure-storage-file-datalake, azure-storage-blob
+  (cloud providers)
 - fastavro, zstandard, lz4, snappy (optional formats/compression)
 """
 
@@ -34,6 +35,10 @@ packages_to_collect = [
     'boto3',
     'botocore',
     's3transfer',
+    # cloudcat's primary Azure client is DataLakeServiceClient; without
+    # collecting filedatalake the bundled binary silently loses ADLS Gen2/HNS
+    # support and only the blob fallback works.
+    'azure.storage.filedatalake',
     'azure.storage.blob',
     'azure.identity',
     'azure.core',
@@ -135,6 +140,10 @@ hiddenimports += [
     'cloudcat.readers.avro',
     'cloudcat.readers.orc',
     'cloudcat.readers.text',
+    'cloudcat.streaming',
+    'cloudcat.streaming.stats',
+    'cloudcat.streaming.tracking',
+    'cloudcat.streaming.filesystems',
 ]
 
 a = Analysis(

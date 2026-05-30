@@ -743,6 +743,11 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 <td>Output format: <code>table</code>, <code>json</code>, <code>jsonp</code>, <code>csv</code></td>
 </tr>
 <tr>
+<td><code>-O, --output-file PATH</code></td>
+<td>none</td>
+<td>Write rendered data to a file instead of stdout</td>
+</tr>
+<tr>
 <td><code>-i, --input-format TEXT</code></td>
 <td>auto-detect</td>
 <td>Input format: <code>csv</code>, <code>json</code>, <code>parquet</code>, <code>avro</code>, <code>orc</code>, <code>text</code></td>
@@ -777,7 +782,7 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 </thead><tbody><tr>
 <td><code>-w, --where TEXT</code></td>
 <td>none</td>
-<td>Filter rows with SQL-like conditions</td>
+<td>Filter rows with SQL-like conditions (scans the file, returns up to <code>--num-rows</code> matches)</td>
 </tr>
 <tr>
 <td><code>-s, --schema TEXT</code></td>
@@ -843,6 +848,10 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 <th>Description</th>
 </tr>
 </thead><tbody><tr>
+<td><code>--no-color</code></td>
+<td>Disable colored output (also honors the <code>NO_COLOR</code> env var). Color is auto-disabled when output is piped.</td>
+</tr>
+<tr>
 <td><code>-y, --yes</code></td>
 <td>Skip confirmation prompts (for scripting)</td>
 </tr>
@@ -1788,11 +1797,11 @@ pytest tests/test_cli.py</code><button class="copy-btn" aria-label="Copy code"><
 <li><input checked="" disabled="" type="checkbox"> <strong>Schema inspection</strong> - View data types</li>
 <li><input checked="" disabled="" type="checkbox"> <strong>Multi-file directories</strong> - Spark/Hive output support</li>
 <li><input checked="" disabled="" type="checkbox"> <strong>Multiple output formats</strong> - table, json, jsonp, csv</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Output to file</strong> - Direct <code>--output-file</code> option</li>
 </ul>
 <h3>Planned Features</h3>
 <ul>
 <li><input disabled="" type="checkbox"> <strong>Interactive mode</strong> - Pagination with keyboard navigation</li>
-<li><input disabled="" type="checkbox"> <strong>Output to file</strong> - Direct <code>--output-file</code> option</li>
 <li><input disabled="" type="checkbox"> <strong>Configuration file</strong> - <code>.cloudcatrc</code> for defaults</li>
 <li><input disabled="" type="checkbox"> <strong>Multiple WHERE conditions</strong> - AND/OR operators</li>
 <li><input disabled="" type="checkbox"> <strong>Sampling</strong> - Random row sampling</li>
