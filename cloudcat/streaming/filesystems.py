@@ -125,17 +125,26 @@ def _get_gcs_filesystem(
         kwargs['project_id'] = gcp_project
 
     if gcp_credentials:
-        # Read the credentials file for PyArrow
-        # PyArrow GcsFileSystem accepts credentials as JSON string
+        # PyArrow's GcsFileSystem has no `credentials` kwarg (passing one raises
+        # TypeError, which silently disabled native streaming). Instead, mint an
+        # OAuth access token from the service account and pass it explicitly,
+        # falling back to pointing ADC at the file via the standard env var.
         try:
-            with open(gcp_credentials, 'r') as f:
-                import json
-                creds_data = json.load(f)
-                # PyArrow expects the JSON as a string
-                kwargs['credentials'] = json.dumps(creds_data)
+            from google.oauth2 import service_account
+            import google.auth.transport.requests
+
+            creds = service_account.Credentials.from_service_account_file(
+                gcp_credentials,
+                scopes=['https://www.googleapis.com/auth/devstorage.read_only'],
+            )
+            creds.refresh(google.auth.transport.requests.Request())
+            kwargs['access_token'] = creds.token
+            if creds.expiry is not None:
+                kwargs['credential_token_expiration'] = creds.expiry
         except Exception:
-            # Fall back to default credentials
-            pass
+            # Fall back to default credential resolution via the env var.
+            import os
+            os.environ.setdefault('GOOGLE_APPLICATION_CREDENTIALS', gcp_credentials)
 
     filesystem = pa_fs.GcsFileSystem(**kwargs)
     return filesystem, ''

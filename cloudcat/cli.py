@@ -3,6 +3,7 @@
 
 import click
 import pandas as pd
+import os
 import sys
 import io
 import json
@@ -11,9 +12,6 @@ import tempfile
 from typing import Optional, Tuple, List
 
 from colorama import init, Fore, Style
-
-# Initialize colorama
-init()
 
 # Import version
 from . import __version__
@@ -59,7 +57,6 @@ from .readers import (
 from .streaming import (
     StreamingStats,
     format_bytes,
-    BytesTrackingStream,
     get_pyarrow_filesystem,
     supports_pyarrow_fs,
 )
@@ -69,6 +66,93 @@ try:
     import pyarrow.parquet as pq
 except ImportError:
     pq = None
+
+
+def info(message: str) -> None:
+    """Print a diagnostic/status message to stderr.
+
+    Keeping non-data output off stdout means piping or redirecting cloudcat
+    (e.g. ``cloudcat ... > out.csv``) produces a clean data file.
+    """
+    click.echo(message, err=True)
+
+
+def _configure_color(no_color: bool) -> None:
+    """Initialize colorama, stripping ANSI codes when output is not a terminal.
+
+    Color is enabled only when stdout is a TTY, ``--no-color`` was not passed,
+    and the NO_COLOR environment variable is unset (https://no-color.org).
+    """
+    use_color = (
+        not no_color
+        and sys.stdout.isatty()
+        and os.environ.get('NO_COLOR') is None
+    )
+    # strip=True makes colorama remove escape codes from everything it wraps.
+    init(strip=not use_color)
+
+
+# Map of input format -> non-streaming reader (used for multi-file reads).
+_READERS = {
+    'csv': lambda stream, n, columns, delimiter: read_csv_data(stream, n, columns, delimiter),
+    'json': lambda stream, n, columns, delimiter: read_json_data(stream, n, columns),
+    'parquet': lambda stream, n, columns, delimiter: read_parquet_data(stream, n, columns),
+    'avro': lambda stream, n, columns, delimiter: read_avro_data(stream, n, columns),
+    'orc': lambda stream, n, columns, delimiter: read_orc_data(stream, n, columns),
+    'text': lambda stream, n, columns, delimiter: read_text_data(stream, n, columns),
+}
+
+
+def _list_non_empty_files(service: str, bucket: str, prefix: str) -> List[Tuple[str, int]]:
+    """List a directory and return its non-empty files, sorted by name.
+
+    Raises:
+        ValueError: If the directory has no files (or only empty ones).
+    """
+    files = list_directory(service, bucket, prefix)
+    if not files:
+        raise ValueError(f"No files found in {service}://{bucket}/{prefix}")
+
+    non_empty_files = [f for f in files if f[1] > 0]
+    if not non_empty_files:
+        raise ValueError(f"No non-empty files found in {service}://{bucket}/{prefix}")
+
+    non_empty_files.sort(key=lambda x: x[0])
+    return non_empty_files
+
+
+def _drop_metadata_files(files: List[Tuple[str, int]]) -> Tuple[List[Tuple[str, int]], bool]:
+    """Drop common metadata/marker files (e.g. _SUCCESS, .crc).
+
+    Returns:
+        (files, only_metadata) where only_metadata is True if dropping would
+        empty the list, in which case the original list is returned unchanged.
+    """
+    non_metadata = [f for f in files if not any(re.search(p, f[0]) for p in SKIP_PATTERNS)]
+    if non_metadata:
+        return non_metadata, False
+    return files, True
+
+
+def _filter_by_format(
+    files: List[Tuple[str, int]], input_format: Optional[str]
+) -> Tuple[List[Tuple[str, int]], bool]:
+    """Filter files matching the requested format's extension.
+
+    Returns:
+        (files, matched) where matched is False when an explicit format was
+        requested but nothing matched (the original list is returned so the
+        caller can fall back).
+    """
+    if not input_format:
+        return files, True
+    format_regex = FORMAT_EXTENSION_MAP.get(input_format)
+    if not format_regex:
+        return files, True
+    matching = [f for f in files if re.search(format_regex, f[0], re.IGNORECASE)]
+    if matching:
+        return matching, True
+    return files, False
 
 
 def get_files_for_multiread(
@@ -95,41 +179,16 @@ def get_files_for_multiread(
     Raises:
         ValueError: If no suitable files are found.
     """
-    files = list_directory(service, bucket, prefix)
+    non_empty_files = _list_non_empty_files(service, bucket, prefix)
 
-    if not files:
-        raise ValueError(f"No files found in {service}://{bucket}/{prefix}")
+    filtered_files, only_metadata = _drop_metadata_files(non_empty_files)
+    if only_metadata:
+        info(Fore.YELLOW + "Only found metadata files, using all non-empty files." + Style.RESET_ALL)
 
-    # Filter files by size > 0
-    non_empty_files = [f for f in files if f[1] > 0]
-
-    if not non_empty_files:
-        raise ValueError(f"No non-empty files found in {service}://{bucket}/{prefix}")
-
-    # Skip common metadata files
-    non_metadata_files = []
-
-    for file_name, file_size in non_empty_files:
-        # Skip if the file matches any of the patterns to ignore
-        if not any(re.search(pattern, file_name) for pattern in SKIP_PATTERNS):
-            non_metadata_files.append((file_name, file_size))
-
-    # If no non-metadata files found, use all non-empty files
-    if not non_metadata_files:
-        click.echo(Fore.YELLOW + "Only found metadata files, using all non-empty files." + Style.RESET_ALL)
-        filtered_files = non_empty_files
-    else:
-        filtered_files = non_metadata_files
-
-    # Filter by input format if specified
-    if input_format:
-        format_regex = FORMAT_EXTENSION_MAP.get(input_format, None)
-        if format_regex:
-            matching_files = [f for f in filtered_files if re.search(format_regex, f[0], re.IGNORECASE)]
-            if matching_files:
-                filtered_files = matching_files
-            else:
-                click.echo(Fore.YELLOW + f"No files matching format '{input_format}' found. Using all available files." + Style.RESET_ALL)
+    filtered_files, matched = _filter_by_format(filtered_files, input_format)
+    if input_format and not matched:
+        info(Fore.YELLOW + f"No files matching format '{input_format}' found in "
+             f"{service}://{bucket}/{prefix}. Using all available files." + Style.RESET_ALL)
 
     # Sort by name for deterministic behavior
     filtered_files.sort(key=lambda x: x[0])
@@ -140,7 +199,6 @@ def get_files_for_multiread(
     total_size = 0
 
     for file_name, file_size in filtered_files:
-        # Check if adding this file would exceed the limit
         # Always include at least the first file even if it exceeds the limit
         if selected_files and total_size + file_size > max_size_bytes:
             break
@@ -154,7 +212,7 @@ def get_files_for_multiread(
     # Report on selected files
     if not quiet:
         total_mb = total_size / (1024 * 1024)
-        click.echo(Fore.BLUE + f"Reading {len(selected_files)} files totaling {total_mb:.2f} MB" + Style.RESET_ALL)
+        info(Fore.BLUE + f"Reading {len(selected_files)} files totaling {total_mb:.2f} MB" + Style.RESET_ALL)
 
     return selected_files
 
@@ -181,45 +239,32 @@ def find_first_non_empty_file(
     Raises:
         ValueError: If no suitable files are found.
     """
-    files = list_directory(service, bucket, prefix)
-
-    if not files:
-        raise ValueError(f"No files found in {service}://{bucket}/{prefix}")
-
-    # Filter files by size > 0
-    non_empty_files = [f for f in files if f[1] > 0]
-
-    if not non_empty_files:
-        raise ValueError(f"No non-empty files found in {service}://{bucket}/{prefix}")
-
-    # Sort by name to ensure deterministic behavior
-    non_empty_files.sort(key=lambda x: x[0])
+    non_empty_files = _list_non_empty_files(service, bucket, prefix)
 
     # Filter by input format if specified
     if input_format:
-        format_regex = FORMAT_EXTENSION_MAP.get(input_format, None)
-        if format_regex:
-            matching_files = [f for f in non_empty_files if re.search(format_regex, f[0], re.IGNORECASE)]
-            if matching_files:
-                # Use the first matching file
-                selected_file = matching_files[0]
-                if not quiet:
-                    click.echo(Fore.BLUE + f"Selected file: {selected_file[0]} ({selected_file[1]} bytes)" + Style.RESET_ALL)
-                return selected_file[0], selected_file[1]
+        matching_files, matched = _filter_by_format(non_empty_files, input_format)
+        if matched:
+            selected_file = matching_files[0]
+            if not quiet:
+                info(Fore.BLUE + f"Selected file: {selected_file[0]} ({selected_file[1]} bytes)" + Style.RESET_ALL)
+            return selected_file[0], selected_file[1]
+        # Explicit format requested but nothing matched: warn instead of
+        # silently picking a file that will fail to parse.
+        info(Fore.YELLOW + f"No files matching format '{input_format}' found in "
+             f"{service}://{bucket}/{prefix}. Using first available file." + Style.RESET_ALL)
 
-    # If no input_format specified or no matching files found, use the first non-empty file
-    # Skip common metadata files
+    # Use the first non-empty, non-metadata file
     for file_name, file_size in non_empty_files:
-        # Skip if the file matches any of the patterns to ignore
         if not any(re.search(pattern, file_name) for pattern in SKIP_PATTERNS):
             if not quiet:
-                click.echo(Fore.BLUE + f"Selected file: {file_name} ({file_size} bytes)" + Style.RESET_ALL)
+                info(Fore.BLUE + f"Selected file: {file_name} ({file_size} bytes)" + Style.RESET_ALL)
             return file_name, file_size
 
     # If all files are skipped, use the first non-empty file anyway
     selected_file = non_empty_files[0]
     if not quiet:
-        click.echo(Fore.YELLOW + f"Only found metadata files, using: {selected_file[0]} ({selected_file[1]} bytes)" + Style.RESET_ALL)
+        info(Fore.YELLOW + f"Only found metadata files, using: {selected_file[0]} ({selected_file[1]} bytes)" + Style.RESET_ALL)
     return selected_file[0], selected_file[1]
 
 
@@ -291,7 +336,7 @@ def read_data_from_multiple_files(
     def process_file(file_info, remaining_to_skip, remaining_to_read, file_index, total_files):
         file_name, file_size = file_info
         if not quiet:
-            click.echo(Fore.BLUE + f"Reading file: {file_name} ({file_size/1024:.1f} KB)" + Style.RESET_ALL)
+            info(Fore.BLUE + f"Reading file: {file_name} ({file_size/1024:.1f} KB)" + Style.RESET_ALL)
         else:
             # Update progress indicator with current file
             short_name = file_name.split('/')[-1]
@@ -303,38 +348,35 @@ def read_data_from_multiple_files(
         compression = detect_compression(file_name)
         if compression:
             if not quiet:
-                click.echo(Fore.BLUE + f"Detected {compression} compression, decompressing..." + Style.RESET_ALL)
+                info(Fore.BLUE + f"Detected {compression} compression, decompressing..." + Style.RESET_ALL)
             stream = decompress_stream(stream, compression)
 
-        # Calculate how many rows to read from this file
-        rows_to_read_from_file = (remaining_to_skip + remaining_to_read) if remaining_to_read > 0 else 0
-
-        # Read the file
-        if input_format == 'csv':
-            df, schema = read_csv_data(stream, rows_to_read_from_file if rows_to_read_from_file > 0 else 0, columns, delimiter)
-        elif input_format == 'json':
-            df, schema = read_json_data(stream, rows_to_read_from_file if rows_to_read_from_file > 0 else 0, columns)
-        elif input_format == 'parquet':
-            df, schema = read_parquet_data(stream, rows_to_read_from_file if rows_to_read_from_file > 0 else 0, columns)
-        elif input_format == 'avro':
-            df, schema = read_avro_data(stream, rows_to_read_from_file if rows_to_read_from_file > 0 else 0, columns)
-        elif input_format == 'orc':
-            df, schema = read_orc_data(stream, rows_to_read_from_file if rows_to_read_from_file > 0 else 0, columns)
-        elif input_format == 'text':
-            df, schema = read_text_data(stream, rows_to_read_from_file if rows_to_read_from_file > 0 else 0, columns)
+        # Calculate how many rows to read from this file. When num_rows == 0
+        # (read all), remaining_to_read is 0, which the readers treat as "all".
+        # We still need offset + limit rows from each file when a limit is set.
+        if remaining_to_read > 0:
+            rows_to_read_from_file = remaining_to_skip + remaining_to_read
         else:
+            rows_to_read_from_file = 0  # read all rows from this file
+
+        reader = _READERS.get(input_format)
+        if reader is None:
             raise ValueError(f"Unsupported format: {input_format}")
+        df, schema = reader(stream, rows_to_read_from_file, columns, delimiter)
 
         return df, schema, len(df)
 
     # Process files in order until we have enough rows
     remaining_offset = offset
-    remaining_rows = num_rows if num_rows > 0 else float('inf')
+    remaining_rows = num_rows if num_rows > 0 else 0  # 0 == read all
     total_files = len(file_list)
+    failures = []
 
     for file_index, file_info in enumerate(file_list):
         try:
-            df, schema, file_rows = process_file(file_info, remaining_offset, remaining_rows if remaining_rows != float('inf') else 0, file_index, total_files)
+            df, schema, file_rows = process_file(
+                file_info, remaining_offset, remaining_rows, file_index, total_files
+            )
 
             if not df.empty:
                 total_rows += len(df)
@@ -361,12 +403,20 @@ def read_data_from_multiple_files(
                 if num_rows > 0 and rows_read >= num_rows:
                     break
         except Exception as e:
-            click.echo(Fore.YELLOW + f"Warning: Error reading file {file_info[0]}: {str(e)}" + Style.RESET_ALL)
+            failures.append((file_info[0], e))
+            info(Fore.YELLOW + f"Warning: Error reading file {file_info[0]}: {str(e)}" + Style.RESET_ALL)
 
     if not dfs:
         if rows_skipped > 0:
-            click.echo(Fore.YELLOW + f"Warning: Offset ({offset}) skipped all available rows." + Style.RESET_ALL)
+            info(Fore.YELLOW + f"Warning: Offset ({offset}) skipped all available rows." + Style.RESET_ALL)
             return pd.DataFrame(), pd.Series(dtype=object), total_rows
+        if failures:
+            # Surface the real cause instead of a generic message.
+            first_name, first_exc = failures[0]
+            raise ValueError(
+                f"No data could be read from any of the {len(file_list)} files; "
+                f"first error on '{first_name}': {first_exc}"
+            ) from first_exc
         raise ValueError("No data could be read from any of the files")
 
     # Concatenate the dataframes
@@ -390,38 +440,6 @@ def read_data_from_multiple_files(
         result_df = result_df.iloc[:num_rows]
 
     return result_df, full_schema, total_rows
-
-
-def read_data(
-    service: str,
-    bucket: str,
-    object_path: str,
-    input_format: str,
-    num_rows: int,
-    columns: Optional[str] = None,
-    delimiter: Optional[str] = None,
-    offset: int = 0
-) -> Tuple[pd.DataFrame, pd.Series]:
-    """Read data from cloud storage (legacy interface).
-
-    Args:
-        service: Cloud service identifier.
-        bucket: Bucket or container name.
-        object_path: Object path.
-        input_format: Data format.
-        num_rows: Maximum rows to read.
-        columns: Columns to select.
-        delimiter: CSV delimiter.
-        offset: Rows to skip.
-
-    Returns:
-        Tuple of (DataFrame, schema).
-    """
-    df, schema, _ = read_data_streaming(
-        service, bucket, object_path, input_format,
-        num_rows, columns, delimiter, offset
-    )
-    return df, schema
 
 
 def read_data_streaming(
@@ -472,7 +490,7 @@ def read_data_streaming(
     # For columnar formats without external compression, try native PyArrow filesystem
     use_native_fs = input_format in ('parquet', 'orc') and compression is None
     if use_native_fs and not supports_pyarrow_fs():
-        click.echo(Fore.YELLOW + "Note: pyarrow.fs not available, downloading full file instead of streaming" + Style.RESET_ALL)
+        info(Fore.YELLOW + "Note: pyarrow.fs not available, downloading full file instead of streaming" + Style.RESET_ALL)
         use_native_fs = False
 
     if use_native_fs:
@@ -507,7 +525,7 @@ def read_data_streaming(
             # Apply offset
             if offset > 0 and not df.empty:
                 if offset >= len(df):
-                    click.echo(Fore.YELLOW + f"Warning: Offset ({offset}) >= total rows read ({len(df)}). No data to display." + Style.RESET_ALL)
+                    info(Fore.YELLOW + f"Warning: Offset ({offset}) >= total rows read ({len(df)}). No data to display." + Style.RESET_ALL)
                     df = df.iloc[0:0]
                 else:
                     df = df.iloc[offset:].reset_index(drop=True)
@@ -516,7 +534,7 @@ def read_data_streaming(
 
         except Exception as e:
             # Fall back to stream-based approach
-            click.echo(Fore.YELLOW + f"Native filesystem unavailable, using stream: {str(e)}" + Style.RESET_ALL)
+            info(Fore.YELLOW + f"Native filesystem unavailable, using stream: {str(e)}" + Style.RESET_ALL)
 
     # Get stream for non-native filesystem approach
     stream = get_stream(service, bucket, object_path)
@@ -524,11 +542,11 @@ def read_data_streaming(
     # Handle compression with streaming decompression where possible
     if compression:
         if supports_streaming_decompression(compression):
-            click.echo(Fore.BLUE + f"Detected {compression} compression, streaming decompression..." + Style.RESET_ALL)
+            info(Fore.BLUE + f"Detected {compression} compression, streaming decompression..." + Style.RESET_ALL)
             stream, is_streaming = get_streaming_decompressor(stream, compression)
             stats.is_streaming = is_streaming
         else:
-            click.echo(Fore.BLUE + f"Detected {compression} compression, decompressing..." + Style.RESET_ALL)
+            info(Fore.BLUE + f"Detected {compression} compression, decompressing..." + Style.RESET_ALL)
             stream = decompress_stream(stream, compression)
             stats.is_streaming = False
 
@@ -551,7 +569,7 @@ def read_data_streaming(
     # Apply offset - skip first N rows
     if offset > 0 and not df.empty:
         if offset >= len(df):
-            click.echo(Fore.YELLOW + f"Warning: Offset ({offset}) >= total rows read ({len(df)}). No data to display." + Style.RESET_ALL)
+            info(Fore.YELLOW + f"Warning: Offset ({offset}) >= total rows read ({len(df)}). No data to display." + Style.RESET_ALL)
             df = df.iloc[0:0]
         else:
             df = df.iloc[offset:].reset_index(drop=True)
@@ -611,7 +629,7 @@ def get_record_count(
     else:
         # For CSV and JSON, we need to count the rows
         if not quiet:
-            click.echo(Fore.YELLOW + "Counting records (this might take a while for large files)..." + Style.RESET_ALL)
+            info(Fore.YELLOW + "Counting records (this might take a while for large files)..." + Style.RESET_ALL)
 
         stream = get_stream(service, bucket, object_path)
         if compression:
@@ -713,7 +731,7 @@ def get_record_count_multiple_files(
     Returns:
         Total record count (int) or "Unknown" on failure.
     """
-    click.echo(Fore.YELLOW + f"Counting records across {len(file_list)} files..." + Style.RESET_ALL)
+    info(Fore.YELLOW + f"Counting records across {len(file_list)} files..." + Style.RESET_ALL)
     total_count = 0
 
     for file_name, file_size in file_list:
@@ -721,41 +739,73 @@ def get_record_count_multiple_files(
             count = get_record_count(service, bucket, file_name, input_format, delimiter, quiet=True)
             if isinstance(count, int):
                 total_count += count
-                click.echo(Fore.BLUE + f"  {file_name}: {count:,} records" + Style.RESET_ALL)
+                info(Fore.BLUE + f"  {file_name}: {count:,} records" + Style.RESET_ALL)
             else:
-                click.echo(Fore.YELLOW + f"  {file_name}: {count}" + Style.RESET_ALL)
+                info(Fore.YELLOW + f"  {file_name}: {count}" + Style.RESET_ALL)
         except Exception as e:
-            click.echo(Fore.YELLOW + f"  {file_name}: Error - {str(e)}" + Style.RESET_ALL)
+            info(Fore.YELLOW + f"  {file_name}: Error - {str(e)}" + Style.RESET_ALL)
 
     return total_count
 
 
+_ANSI_RE = re.compile(r'\x1b\[[0-9;]*m')
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI color escape codes from a string (for file output)."""
+    return _ANSI_RE.sub('', text)
+
+
+def _format_count(value) -> str:
+    """Format a record count, leaving non-numeric 'Unknown ...' strings intact."""
+    return f"{value:,}" if isinstance(value, int) else str(value)
+
+
+def _render_data(df: pd.DataFrame, output_format: str) -> str:
+    """Render a DataFrame to the requested output format string."""
+    if output_format == 'table':
+        return format_table_with_colored_header(df)
+    elif output_format == 'jsonp':
+        return colorize_json(df.to_json(orient='records'))
+    elif output_format == 'json':
+        return df.to_json(orient='records', lines=True)
+    elif output_format == 'csv':
+        return df.to_csv(index=False)
+    raise ValueError(f"Unsupported output format: {output_format}")
+
+
 @click.command()
 @click.version_option(version=__version__, prog_name='cloudcat')
-@click.option('--path', '-p', required=True, help='Path to the file or directory (gcs://, s3://, or abfss://)')
+@click.option('--path', '-p', required=True,
+              help='Path to the file or directory (gs://, gcs://, s3://, or abfss://)')
 @click.option('--output-format', '-o', type=click.Choice(['json', 'jsonp', 'csv', 'table']), default='table',
               help='Output format (default: table)')
+@click.option('--output-file', '-O', type=click.Path(dir_okay=False, writable=True),
+              help='Write rendered data to this file instead of stdout')
 @click.option('--input-format', '-i', type=click.Choice(['json', 'csv', 'parquet', 'avro', 'orc', 'text']),
               help='Input format (default: inferred from path)')
 @click.option('--columns', '-c', help='Comma-separated list of columns to display (default: all)')
-@click.option('--num-rows', '-n', default=10, type=int, help='Number of rows to display (default: 10)')
-@click.option('--offset', default=0, type=int, help='Skip first N rows (default: 0)')
-@click.option('--where', '-w', help='Filter rows (e.g., "status=active", "age>30", "name contains john")')
+@click.option('--num-rows', '-n', default=10, type=click.IntRange(min=0),
+              help='Number of rows to display, 0 = all (default: 10)')
+@click.option('--offset', default=0, type=click.IntRange(min=0), help='Skip first N rows (default: 0)')
+@click.option('--where', '-w',
+              help='Filter rows; scans the file (e.g., "status=active", "age>30", "name contains john")')
 @click.option('--schema', '-s', type=click.Choice(['show', 'dont_show', 'schema_only']), default='show',
               help='Schema display option (default: show)')
 @click.option('--count', is_flag=True, help='Show total record count (requires scanning entire file)')
 @click.option('--multi-file-mode', '-m', type=click.Choice(['first', 'auto', 'all']), default='auto',
               help='How to handle directories with multiple files (default: auto)')
-@click.option('--max-size-mb', default=25, type=int,
+@click.option('--max-size-mb', default=25, type=click.IntRange(min=0),
               help='Maximum size in MB to read when reading multiple files (default: 25)')
 @click.option('--delimiter', '-d', help='Delimiter to use for CSV files (use "\\t" for tab)')
+@click.option('--no-color', is_flag=True, help='Disable colored output (also honors the NO_COLOR env var)')
 @click.option('--profile', help='AWS profile name (for S3 access)')
 @click.option('--project', help='GCP project ID (for GCS access)')
 @click.option('--credentials', help='Path to GCP service account JSON file')
 @click.option('--az-access-key', help='Azure storage account access key')
 @click.option('--yes', '-y', is_flag=True, help='Skip confirmation prompts (for scripting)')
-def main(path, output_format, input_format, columns, num_rows, offset, where, schema, count,
-         multi_file_mode, max_size_mb, delimiter, profile, project, credentials, az_access_key, yes):
+def main(path, output_format, output_file, input_format, columns, num_rows, offset, where, schema, count,
+         multi_file_mode, max_size_mb, delimiter, no_color, profile, project, credentials, az_access_key, yes):
     """Display data from files in Google Cloud Storage, AWS S3, or Azure Data Lake Storage Gen2.
 
     Supported formats: CSV, JSON, Parquet, Avro, ORC, and plain text.
@@ -804,10 +854,14 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
     cloudcat --path gcs://my-bucket/data.csv --offset 100 --num-rows 10
 
     \b
-    # Filter rows with WHERE clause
+    # Filter rows with WHERE clause (scans the file for matching rows)
     cloudcat --path s3://bucket/users.parquet --where "status=active"
     cloudcat --path s3://bucket/events.json --where "age>30"
     cloudcat --path gcs://bucket/logs.csv --where "message contains error"
+
+    \b
+    # Export rows to a local file (clean data, no diagnostics)
+    cloudcat --path s3://bucket/data.parquet --output-format csv --output-file out.csv
 
     \b
     # Read compressed files (auto-detected)
@@ -830,6 +884,15 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
     # Use Azure storage account access key
     cloudcat --path abfss://container@account.dfs.core.windows.net/data.csv --az-access-key YOUR_KEY
     """
+    # Enable color only for an interactive stdout; writing to a file is never
+    # colored. This must run before any colored output is produced.
+    _configure_color(no_color or bool(output_file))
+
+    # When filtering, the display window (num_rows) must not limit the read
+    # window, or we would filter only the first num_rows and miss matches.
+    # Reading all rows lets us return up to num_rows *matching* rows.
+    read_rows = 0 if where else num_rows
+
     try:
         # Configure cloud credentials from CLI options
         if profile:
@@ -866,19 +929,19 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                 stop_progress()
 
                 # Show file selection info
-                click.echo(Fore.BLUE + f"Selected file: {object_path} ({file_size} bytes)" + Style.RESET_ALL)
+                info(Fore.BLUE + f"Selected file: {object_path} ({file_size} bytes)" + Style.RESET_ALL)
 
                 # Determine input format if not specified
                 if not input_format:
                     input_format = detect_format_from_path(object_path)
-                click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
+                info(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
 
                 # Get file name for display
                 file_name = object_path.split('/')[-1]
                 start_progress(f"Reading {file_name}...")
 
                 # Read the data from the single file with streaming
-                df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, num_rows, columns, delimiter, offset)
+                df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, read_rows, columns, delimiter, offset)
                 total_record_count = None  # Will be computed later if needed
 
                 # Stop progress
@@ -907,18 +970,18 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
 
                     # Use streaming read for all formats
                     df, full_schema, streaming_stats = read_data_streaming(
-                        service, bucket, single_file_path, input_format, num_rows, columns, delimiter, offset
+                        service, bucket, single_file_path, input_format, read_rows, columns, delimiter, offset
                     )
                     stop_progress()
 
-                    click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
+                    info(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
                     multi_file_list = file_list
                     total_record_count = None
                 elif len(file_list) > 1:
                     # Read data from multiple files with progress updates
                     update_progress(f"Reading {len(file_list)} files...")
                     df, full_schema, rows_in_files = read_data_from_multiple_files(
-                        service, bucket, file_list, input_format, num_rows, columns, delimiter, offset, quiet=True
+                        service, bucket, file_list, input_format, read_rows, columns, delimiter, offset, quiet=True
                     )
 
                     # Stop progress before any output
@@ -928,7 +991,7 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
                     total_size = sum(f[1] for f in file_list)
                     streaming_stats = StreamingStats(file_size=total_size, bytes_read=total_size, format_type=input_format)
 
-                    click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
+                    info(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
 
                     # total_record_count will be computed later if --count is specified
                     total_record_count = None
@@ -943,9 +1006,9 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
 
                     # Warn user about counting all files in directory
                     if not yes:
-                        click.echo(Fore.YELLOW + f"\nWarning: --count will scan {len(all_files)} files ({all_files_size_mb:.1f} MB total)." + Style.RESET_ALL)
-                        if not click.confirm("Continue?", default=True):
-                            click.echo("Aborted.")
+                        info(Fore.YELLOW + f"\nWarning: --count will scan {len(all_files)} files ({all_files_size_mb:.1f} MB total)." + Style.RESET_ALL)
+                        if not click.confirm("Continue?", default=True, err=True):
+                            info("Aborted.")
                             return
 
                     multi_file_list = all_files
@@ -960,85 +1023,84 @@ def main(path, output_format, input_format, columns, num_rows, offset, where, sc
             # Determine input format if not specified
             if not input_format:
                 input_format = detect_format_from_path(object_path)
-                click.echo(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
+                info(Fore.BLUE + f"Inferred input format: {input_format}" + Style.RESET_ALL)
 
             # Get file name for display
             file_name = object_path.split('/')[-1]
             start_progress(f"Reading {file_name}...")
 
             # Read the data with streaming
-            df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, num_rows, columns, delimiter, offset)
+            df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, read_rows, columns, delimiter, offset)
             total_record_count = None  # Will be computed later if needed
 
             stop_progress()
 
-        # Apply WHERE filter if specified
+        # Apply WHERE filter if specified. Because we read the full file when
+        # filtering, this matches across the whole file; then we truncate to the
+        # requested display window.
         if where and not df.empty:
             original_count = len(df)
             df = apply_where_filter(df, where)
+            if num_rows > 0 and len(df) > num_rows:
+                df = df.head(num_rows)
             filtered_count = len(df)
-            click.echo(Fore.BLUE + f"Filtered: {filtered_count} of {original_count} rows match '{where}'" + Style.RESET_ALL)
+            info(Fore.BLUE + f"Filtered: {filtered_count} of {original_count} rows match '{where}'" + Style.RESET_ALL)
 
-        # Display schema if requested
-        if schema in ['show', 'schema_only']:
-            click.echo(Fore.GREEN + "Schema:" + Style.RESET_ALL)
-            for col, dtype in full_schema.items():
-                click.echo(f"  {col}: {dtype}")
-            click.echo("")
-
-        # Exit if only schema was requested
-        if schema == 'schema_only':
-            # Show count only if --count flag is specified
-            if count:
-                try:
-                    if total_record_count is None:
-                        if multi_file_list:
-                            total_record_count = get_record_count_multiple_files(
-                                service, bucket, multi_file_list, input_format, delimiter
-                            )
-                        else:
-                            total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
-                    click.echo(Fore.CYAN + f"Total records: {total_record_count:,}" + Style.RESET_ALL)
-                except Exception as e:
-                    click.echo(Fore.YELLOW + f"Could not count records: {str(e)}" + Style.RESET_ALL)
-            return
-
-        # Display the data
-        if output_format == 'table':
-            # Use our custom function for formatted table output
-            click.echo(format_table_with_colored_header(df))
-        elif output_format == 'jsonp':
-            # Pretty print JSON with colors
-            json_str = df.to_json(orient='records')
-            # Apply colors for better readability
-            click.echo(colorize_json(json_str))
-        elif output_format == 'json':
-            click.echo(df.to_json(orient='records', lines=True))
-        elif output_format == 'csv':
-            click.echo(df.to_csv(index=False))
-
-        # Show record count only if --count flag is specified
-        if count:
+        def emit_count(prefix=""):
+            """Compute (if needed) and print the total record count to stderr."""
+            nonlocal total_record_count
             try:
                 if total_record_count is None:
                     if multi_file_list:
-                        # Count across all files in the directory
                         total_record_count = get_record_count_multiple_files(
                             service, bucket, multi_file_list, input_format, delimiter
                         )
                     else:
-                        # Single file count
                         total_record_count = get_record_count(service, bucket, object_path, input_format, delimiter)
-                    # Update stats to reflect full file was read for counting
+                    # Reflect that the full file was scanned for counting.
                     if streaming_stats:
                         streaming_stats.bytes_read = streaming_stats.file_size
-                click.echo(Fore.CYAN + f"\nTotal records: {total_record_count:,}" + Style.RESET_ALL)
+                info(Fore.CYAN + f"{prefix}Total records: {_format_count(total_record_count)}" + Style.RESET_ALL)
             except Exception as e:
-                click.echo(Fore.YELLOW + f"\nCould not count records: {str(e)}" + Style.RESET_ALL)
+                info(Fore.YELLOW + f"{prefix}Could not count records: {str(e)}" + Style.RESET_ALL)
 
-        # Display streaming stats footer
+        # Display schema if requested. In schema_only mode the schema IS the
+        # requested output, so it goes to stdout; otherwise it is supplementary
+        # context and goes to stderr to keep stdout clean for piping.
+        if schema in ['show', 'schema_only']:
+            schema_lines = [Fore.GREEN + "Schema:" + Style.RESET_ALL]
+            schema_lines += [f"  {col}: {dtype}" for col, dtype in full_schema.items()]
+            schema_text = '\n'.join(schema_lines)
+            if schema == 'schema_only':
+                click.echo(schema_text)
+            else:
+                info(schema_text)
+                info("")
+
+        # Exit if only schema was requested
+        if schema == 'schema_only':
+            if count:
+                emit_count()
+            return
+
+        # Render the data and write it to the output file or stdout.
+        rendered = _render_data(df, output_format)
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8', newline='') as f:
+                f.write(_strip_ansi(rendered))
+                if not rendered.endswith('\n'):
+                    f.write('\n')
+            info(Fore.GREEN + f"Wrote output to {output_file}" + Style.RESET_ALL)
+        else:
+            click.echo(rendered)
+
+        # Show record count only if --count flag is specified
+        if count:
+            emit_count(prefix="\n")
+
+        # Display streaming stats footer (to stderr, supplementary info)
         if streaming_stats and streaming_stats.file_size > 0:
-            click.echo(Fore.BLUE + f"\n{streaming_stats.format_report()}" + Style.RESET_ALL)
+            info(Fore.BLUE + f"\n{streaming_stats.format_report()}" + Style.RESET_ALL)
 
     except Exception as e:
         stop_progress()  # Make sure progress is stopped on error

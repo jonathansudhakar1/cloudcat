@@ -18,12 +18,23 @@ class ProgressIndicator:
     def __init__(self):
         self._message: str = ""
         self._running: bool = False
+        self._enabled: bool = False
         self._thread: Optional[threading.Thread] = None
         self._frame_index: int = 0
         self._lock = threading.Lock()
 
     def start(self, message: str = "Working...") -> None:
-        """Start the progress indicator with an initial message."""
+        """Start the progress indicator with an initial message.
+
+        The spinner is written to stderr and only when stderr is an interactive
+        terminal, so it never corrupts piped/redirected data on stdout.
+        """
+        # Only animate for interactive terminals; stay silent when redirected.
+        if not sys.stderr.isatty():
+            self._enabled = False
+            return
+
+        self._enabled = True
         with self._lock:
             self._message = message
             self._running = True
@@ -34,6 +45,8 @@ class ProgressIndicator:
 
     def update(self, message: str) -> None:
         """Update the progress message."""
+        if not self._enabled:
+            return
         with self._lock:
             self._message = message
 
@@ -46,10 +59,10 @@ class ProgressIndicator:
             self._thread.join(timeout=0.5)
             self._thread = None
 
-        # Clear the current line - use stdout since that's where output goes
-        # Use a wider clear to handle wide terminals
-        sys.stdout.write('\r' + ' ' * 120 + '\r')
-        sys.stdout.flush()
+        # Clear the current line on stderr (where the spinner was drawn).
+        if self._enabled:
+            sys.stderr.write('\r' + ' ' * 120 + '\r')
+            sys.stderr.flush()
 
         # Show final message if provided
         if final_message:
@@ -66,13 +79,12 @@ class ProgressIndicator:
                 frame = self.SPINNER_FRAMES[self._frame_index]
                 self._frame_index = (self._frame_index + 1) % len(self.SPINNER_FRAMES)
 
-            # Write spinner and message, overwriting the line
-            # Use stdout to match the rest of the CLI output
+            # Write spinner and message to stderr, overwriting the line.
             output = f'\r{Fore.CYAN}{frame}{Style.RESET_ALL} {message}'
             # Pad to clear any leftover characters from longer previous messages
             output = output.ljust(120)
-            sys.stdout.write(output)
-            sys.stdout.flush()
+            sys.stderr.write(output)
+            sys.stderr.flush()
 
             time.sleep(0.08)
 

@@ -106,12 +106,41 @@ def _get_blob_service_client():
         return BlobServiceClient(account_url=account_url, credential=credential)
 
 
-# Keep old function name as alias for backwards compatibility
+# Keep old function name as alias for backwards compatibility.
+# Note: this returns a DataLakeServiceClient, NOT a BlobServiceClient, despite
+# the legacy name. Prefer get_azure_datalake_service_client in new code.
 get_azure_blob_service_client = get_azure_datalake_service_client
+
+
+def _is_non_hns_error(error: Exception) -> bool:
+    """Return True if the error indicates the account is not HNS-enabled.
+
+    Such accounts reject the Data Lake (dfs) API and must use the Blob API.
+    """
+    error_str = str(error)
+    return 'EndpointUnsupportedAccountFeatures' in error_str or 'BlobStorageEvents' in error_str
+
+
+def _get_azure_stream_blob(container_name: str, file_path: str) -> io.BytesIO:
+    """Download a file using the Azure Blob API (works with any account)."""
+    blob_client = _get_blob_service_client().get_blob_client(container_name, file_path)
+    buffer = io.BytesIO()
+    buffer.write(blob_client.download_blob().readall())
+    buffer.seek(0)
+    return buffer
+
+
+def _get_azure_file_size_blob(container_name: str, file_path: str) -> int:
+    """Get a file size using the Azure Blob API (works with any account)."""
+    blob_client = _get_blob_service_client().get_blob_client(container_name, file_path)
+    return blob_client.get_blob_properties().size
 
 
 def get_azure_stream(container_name: str, file_path: str) -> io.BytesIO:
     """Get a file stream from Azure Data Lake Storage Gen2.
+
+    Tries the Data Lake API first, then falls back to the Blob API for
+    non-HNS storage accounts.
 
     Args:
         container_name: Azure filesystem (container) name.
@@ -120,21 +149,31 @@ def get_azure_stream(container_name: str, file_path: str) -> io.BytesIO:
     Returns:
         BytesIO buffer containing the file content.
     """
-    datalake_service_client = get_azure_datalake_service_client()
-    file_system_client = datalake_service_client.get_file_system_client(file_system=container_name)
-    file_client = file_system_client.get_file_client(file_path)
+    if HAS_AZURE_DATALAKE:
+        try:
+            datalake_service_client = get_azure_datalake_service_client()
+            file_system_client = datalake_service_client.get_file_system_client(file_system=container_name)
+            file_client = file_system_client.get_file_client(file_path)
+            buffer = io.BytesIO()
+            buffer.write(file_client.download_file().readall())
+            buffer.seek(0)
+            return buffer
+        except Exception as e:
+            if _is_non_hns_error(e) and HAS_AZURE_BLOB:
+                return _get_azure_stream_blob(container_name, file_path)
+            raise
 
-    # Download file to a BytesIO buffer
-    buffer = io.BytesIO()
-    download = file_client.download_file()
-    buffer.write(download.readall())
-    buffer.seek(0)
+    if HAS_AZURE_BLOB:
+        return _get_azure_stream_blob(container_name, file_path)
 
-    return buffer
+    raise ValueError("No Azure storage client is available.")
 
 
 def get_azure_file_size(container_name: str, file_path: str) -> int:
     """Get the size of an Azure Data Lake file without downloading it.
+
+    Tries the Data Lake API first, then falls back to the Blob API for
+    non-HNS storage accounts.
 
     Args:
         container_name: Azure filesystem (container) name.
@@ -143,11 +182,21 @@ def get_azure_file_size(container_name: str, file_path: str) -> int:
     Returns:
         File size in bytes.
     """
-    datalake_service_client = get_azure_datalake_service_client()
-    file_system_client = datalake_service_client.get_file_system_client(file_system=container_name)
-    file_client = file_system_client.get_file_client(file_path)
-    properties = file_client.get_file_properties()
-    return properties.size
+    if HAS_AZURE_DATALAKE:
+        try:
+            datalake_service_client = get_azure_datalake_service_client()
+            file_system_client = datalake_service_client.get_file_system_client(file_system=container_name)
+            file_client = file_system_client.get_file_client(file_path)
+            return file_client.get_file_properties().size
+        except Exception as e:
+            if _is_non_hns_error(e) and HAS_AZURE_BLOB:
+                return _get_azure_file_size_blob(container_name, file_path)
+            raise
+
+    if HAS_AZURE_BLOB:
+        return _get_azure_file_size_blob(container_name, file_path)
+
+    raise ValueError("No Azure storage client is available.")
 
 
 def _list_azure_directory_datalake(container_name: str, prefix: str) -> List[Tuple[str, int]]:
@@ -207,12 +256,9 @@ def list_azure_directory(container_name: str, prefix: str) -> List[Tuple[str, in
         try:
             return _list_azure_directory_datalake(container_name, prefix)
         except Exception as e:
-            # Check if it's an endpoint/feature incompatibility error
-            error_str = str(e)
-            if 'EndpointUnsupportedAccountFeatures' in error_str or 'BlobStorageEvents' in error_str:
-                # Fall back to Blob API
-                if HAS_AZURE_BLOB:
-                    return _list_azure_directory_blob(container_name, prefix)
+            # Fall back to the Blob API for non-HNS accounts
+            if _is_non_hns_error(e) and HAS_AZURE_BLOB:
+                return _list_azure_directory_blob(container_name, prefix)
             # Re-raise other errors
             raise
 

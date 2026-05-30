@@ -99,8 +99,10 @@ def list_gcs_directory(bucket_name: str, prefix: str) -> List[Tuple[str, int]]:
     client = get_gcs_client()
     bucket = client.bucket(bucket_name)
 
-    # Ensure prefix ends with / to indicate a directory
-    if not prefix.endswith('/'):
+    # Ensure a non-empty prefix ends with / to indicate a directory.
+    # An empty prefix (bucket root) must stay empty: GCS object names never
+    # begin with '/', so a '/' prefix would match nothing and hide the bucket.
+    if prefix and not prefix.endswith('/'):
         prefix = prefix + '/'
 
     blobs = bucket.list_blobs(prefix=prefix)

@@ -118,10 +118,13 @@ class TestIntegration:
 
         file_list = [("file1.json", 512), ("file2.json", 1024)]
 
-        with pytest.raises(ValueError, match="No data could be read from any of the files"):
+        # The error surfaces the first underlying failure rather than a generic
+        # "no data" message, so the real root cause is not masked.
+        with pytest.raises(ValueError, match="No data could be read from any of the") as excinfo:
             read_data_from_multiple_files(
                 "s3", "bucket", file_list, "json", 0, None
             )
+        assert "File 1 corrupted" in str(excinfo.value)
 
     @patch('cloudcat.cli.get_stream')
     @patch('cloudcat.cli.read_csv_data')
@@ -150,9 +153,10 @@ class TestIntegration:
         file_list = [("file1.csv", 1024)]
 
         # When service is unsupported, get_stream raises ValueError but
-        # read_data_from_multiple_files catches it and continues - if all files fail,
-        # it raises "No data could be read"
-        with pytest.raises(ValueError, match="No data could be read from any of the files"):
+        # read_data_from_multiple_files catches it and continues - if all files
+        # fail, it raises an error that surfaces the underlying cause.
+        with pytest.raises(ValueError, match="No data could be read from any of the") as excinfo:
             read_data_from_multiple_files(
                 "ftp", "bucket", file_list, "csv", 0, None
             )
+        assert "Unsupported service: ftp" in str(excinfo.value)

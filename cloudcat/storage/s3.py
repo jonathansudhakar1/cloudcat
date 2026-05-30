@@ -83,8 +83,10 @@ def list_s3_directory(bucket_name: str, prefix: str) -> List[Tuple[str, int]]:
     """
     s3 = get_s3_client()
 
-    # Ensure prefix ends with / to indicate a directory
-    if not prefix.endswith('/'):
+    # Ensure a non-empty prefix ends with / to indicate a directory.
+    # An empty prefix (bucket root) must stay empty: S3 keys never begin with
+    # '/', so a '/' prefix would match nothing and hide the whole bucket.
+    if prefix and not prefix.endswith('/'):
         prefix = prefix + '/'
 
     paginator = s3.get_paginator('list_objects_v2')

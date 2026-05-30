@@ -68,7 +68,7 @@ def read_json_data_streaming(
         # Peek at first character to detect format
         first_bytes = stream.read(1)
         if isinstance(first_bytes, bytes):
-            first_char = first_bytes.decode('utf-8') if first_bytes else ''
+            first_char = first_bytes.decode('utf-8', errors='replace') if first_bytes else ''
         else:
             first_char = first_bytes
 
@@ -82,7 +82,7 @@ def read_json_data_streaming(
             rest = stream.read()
             if isinstance(rest, bytes):
                 content = first_bytes + rest
-                content = content.decode('utf-8')
+                content = content.decode('utf-8', errors='replace')
             else:
                 content = first_char + rest
             stats.bytes_read = len(content.encode('utf-8'))
@@ -93,7 +93,7 @@ def read_json_data_streaming(
             stats.is_streaming = False
             rest = stream.read()
             if isinstance(rest, bytes):
-                content = (first_bytes + rest).decode('utf-8')
+                content = (first_bytes + rest).decode('utf-8', errors='replace')
             else:
                 content = first_char + rest
             stats.bytes_read = len(content.encode('utf-8'))
@@ -114,60 +114,90 @@ def _read_json_lines_streaming(
     num_rows: int,
     stats: StreamingStats
 ) -> Tuple[pd.DataFrame, pd.Series]:
-    """Read JSON Lines format with streaming (line-by-line)."""
+    """Read JSON that begins with '{'.
+
+    This handles two distinct shapes that both start with '{':
+      * JSON Lines (one complete object per line) — read line-by-line so we can
+        stop early once ``num_rows`` rows are collected (true streaming).
+      * A single pretty-printed (multi-line) object — the per-line parse fails,
+        so we read the whole document and parse it as one record.
+
+    The shape is decided from the *first complete line*: if it parses as
+    standalone JSON it is treated as JSON Lines, otherwise as a single document.
+    """
     stats.is_streaming = True
     bytes_read = len(first_bytes) if first_bytes else 0
 
-    lines = []
-    current_line = first_bytes if isinstance(first_bytes, bytes) else first_bytes.encode('utf-8')
+    def _to_bytes(chunk):
+        return chunk.encode('utf-8') if isinstance(chunk, str) else chunk
 
-    rows_collected = 0
-
-    # Read line by line
+    # Read the first complete line (the rest of the line after first_bytes).
+    first_line = _to_bytes(first_bytes) if first_bytes else b''
     for line_bytes in stream:
         bytes_read += len(line_bytes)
+        first_line += _to_bytes(line_bytes)
+        if first_line.endswith(b'\n'):
+            break
 
-        if isinstance(line_bytes, str):
-            line_bytes = line_bytes.encode('utf-8')
+    first_line_str = first_line.decode('utf-8', errors='replace').strip()
 
-        current_line += line_bytes
+    def _is_standalone_json(text: str) -> bool:
+        try:
+            json.loads(text)
+            return True
+        except (json.JSONDecodeError, ValueError):
+            return False
 
-        # Check if we have a complete line
-        if current_line.endswith(b'\n'):
-            line_str = current_line.decode('utf-8').strip()
-            if line_str:
-                lines.append(line_str)
-                rows_collected += 1
-            current_line = b''
+    if not _is_standalone_json(first_line_str):
+        # Not JSON Lines — a multi-line document. Read the remainder and parse
+        # the whole thing as a single JSON document.
+        rest = stream.read()
+        bytes_read += len(rest) if rest else 0
+        content = first_line + _to_bytes(rest if rest else b'')
+        stats.is_streaming = False
+        stats.bytes_read = bytes_read
+        df, _ = _read_json_fallback(content.decode('utf-8', errors='replace'), num_rows)
+        return df, df.dtypes
 
-            # Stop if we have enough rows
-            if num_rows > 0 and rows_collected >= num_rows:
-                break
+    # JSON Lines: collect the first line, then continue streaming.
+    lines = [first_line_str]
+    rows_collected = 1
+    current_line = b''
 
-    # Handle last line without newline
+    if num_rows <= 0 or rows_collected < num_rows:
+        for line_bytes in stream:
+            bytes_read += len(line_bytes)
+            current_line += _to_bytes(line_bytes)
+
+            if current_line.endswith(b'\n'):
+                line_str = current_line.decode('utf-8', errors='replace').strip()
+                if line_str:
+                    lines.append(line_str)
+                    rows_collected += 1
+                current_line = b''
+
+                if num_rows > 0 and rows_collected >= num_rows:
+                    break
+
+    # Handle a trailing line without a newline.
     if current_line:
-        line_str = current_line.decode('utf-8').strip()
-        if line_str and (num_rows == 0 or rows_collected < num_rows):
+        line_str = current_line.decode('utf-8', errors='replace').strip()
+        if line_str and (num_rows <= 0 or rows_collected < num_rows):
             lines.append(line_str)
 
     stats.bytes_read = bytes_read
 
-    if lines:
-        # Parse JSON Lines
-        content = '\n'.join(lines)
-        try:
-            df = pd.read_json(io.StringIO(content), lines=True)
-        except Exception:
-            # Fall back to parsing each line individually
-            records = []
-            for line in lines:
-                try:
-                    records.append(json.loads(line))
-                except json.JSONDecodeError:
-                    pass
-            df = pd.DataFrame(records) if records else pd.DataFrame()
-    else:
-        df = pd.DataFrame()
+    content = '\n'.join(lines)
+    try:
+        df = pd.read_json(io.StringIO(content), lines=True)
+    except Exception:
+        records = []
+        for line in lines:
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+        df = pd.DataFrame(records) if records else pd.DataFrame()
 
     return df, df.dtypes
 

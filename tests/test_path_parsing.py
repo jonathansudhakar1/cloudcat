@@ -47,11 +47,11 @@ class TestPathParsing:
         assert bucket == "data-lake"
         assert object_path == "year=2023/month=12/day=01/data.parquet"
 
-    def test_az_path_parsing(self):
-        service, bucket, object_path = parse_cloud_path("az://mycontainer/path/to/file.csv")
-        assert service == "azure"
-        assert bucket == "mycontainer"
-        assert object_path == "path/to/file.csv"
+    def test_az_scheme_is_unsupported(self):
+        # Bare az:// carries no storage account, so it never worked; it now
+        # raises a clear error instead of failing later with "account not found".
+        with pytest.raises(ValueError, match="Unsupported scheme: az"):
+            parse_cloud_path("az://mycontainer/path/to/file.csv")
 
     def test_abfss_path_parsing(self):
         """Test Azure Data Lake Storage Gen2 abfss:// scheme."""
