@@ -4,7 +4,9 @@ CloudCat supports multiple output formats to suit different workflows. Use the `
 
 ### Table (Default)
 
-Beautiful ASCII tables with colored headers, perfect for terminal viewing:
+Rounded tables with bold headers and type-aware coloring (numbers cyan and
+right-aligned, booleans green/red, missing values shown as a dim `∘`). Colors
+are automatically disabled when output is piped or `--no-color` is set.
 
 ```bash
 cloudcat -p gcs://bucket/data.csv
@@ -12,13 +14,13 @@ cloudcat -p gcs://bucket/data.csv
 
 Output:
 ```
-┌────────┬─────────────┬─────────────────────┬────────────────────┐
-│ id     │ name        │ email               │ created_at         │
-├────────┼─────────────┼─────────────────────┼────────────────────┤
-│ 1      │ Alice       │ alice@example.com   │ 2024-01-15 10:30   │
-│ 2      │ Bob         │ bob@example.com     │ 2024-01-15 11:45   │
-│ 3      │ Charlie     │ charlie@example.com │ 2024-01-16 09:00   │
-└────────┴─────────────┴─────────────────────┴────────────────────┘
+╭──────┬─────────┬─────────────────────┬────────────────────╮
+│   id │ name    │ email               │ created_at         │
+├──────┼─────────┼─────────────────────┼────────────────────┤
+│    1 │ Alice   │ alice@example.com   │ 2024-01-15 10:30   │
+│    2 │ Bob     │ bob@example.com     │ 2024-01-15 11:45   │
+│    3 │ Charlie │ charlie@example.com │ 2024-01-16 09:00   │
+╰──────┴─────────┴─────────────────────┴────────────────────╯
 ```
 
 Best for:
@@ -61,7 +63,8 @@ cloudcat -p s3://bucket/logs.json -o json -n 0 | jq -s 'group_by(.level) | map({
 
 ### Pretty JSON
 
-Syntax-highlighted, indented JSON for human readability:
+Syntax-highlighted JSON, indented and colorized recursively at every level
+(keys, strings, numbers, booleans, and nulls each get their own color):
 
 ```bash
 cloudcat -p gcs://bucket/config.json -o jsonp
@@ -69,14 +72,19 @@ cloudcat -p gcs://bucket/config.json -o jsonp
 
 Output:
 ```json
-{
-  "id": 1,
-  "name": "Alice",
-  "metadata": {
-    "created": "2024-01-15",
-    "tags": ["user", "active"]
+[
+  {
+    "id": 1,
+    "name": "Alice",
+    "metadata": {
+      "created": "2024-01-15",
+      "tags": [
+        "user",
+        "active"
+      ]
+    }
   }
-}
+]
 ```
 
 Best for:

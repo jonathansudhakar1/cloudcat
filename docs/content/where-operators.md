@@ -13,8 +13,11 @@ CloudCat supports SQL-like filtering with the `--where` option. Filter your data
 | `>=` | `count>=10` | Greater than or equal |
 | `<=` | `score<=50` | Less than or equal |
 | `contains` | `name contains john` | Case-insensitive substring match |
+| `not contains` | `name not contains test` | Case-insensitive substring exclusion |
 | `startswith` | `email startswith admin` | String prefix match |
 | `endswith` | `file endswith .csv` | String suffix match |
+
+> **One condition at a time.** Compound clauses with `AND`/`OR` are not supported and are rejected with a clear error. CloudCat **scans the file** to apply `--where` and returns up to `--num-rows` matching rows.
 
 ### Usage Examples
 
@@ -87,5 +90,6 @@ cloudcat -p gcs://bucket/users.parquet --where "country=US" -o csv -n 0 > us_use
 
 - String values don't need quotes in the WHERE clause
 - Comparisons are type-aware (numeric columns compare numerically)
-- The `contains`, `startswith`, and `endswith` operators are case-insensitive
-- For best performance, filter on columns that exist in your data
+- The `contains`, `not contains`, `startswith`, and `endswith` operators are case-insensitive
+- `--where` scans the file to find matches, so it reads more than a plain `--num-rows` preview on large files
+- Only a single condition is supported; `AND`/`OR` raises an error rather than mis-parsing

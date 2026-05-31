@@ -69,9 +69,9 @@ CloudCat automatically detects and decompresses files based on extension:
 
 | Format | Flag | Description |
 |--------|------|-------------|
-| Table | `-o table` | Beautiful ASCII table with colored headers (default) |
+| Table | `-o table` | Rounded table with bold headers and type-aware coloring (default) |
 | JSON | `-o json` | Standard JSON Lines output (one record per line) |
-| Pretty JSON | `-o jsonp` | Syntax-highlighted, indented JSON with colors |
+| Pretty JSON | `-o jsonp` | Syntax-highlighted JSON, indented and colorized recursively |
 | CSV | `-o csv` | Comma-separated values for further processing |
 
 ### Key Capabilities

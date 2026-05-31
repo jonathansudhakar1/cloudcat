@@ -60,7 +60,7 @@ Install only what you need:
 ### Requirements
 
 - **Homebrew**: macOS Apple Silicon (M1/M2/M3/M4). Intel Mac users should use pip.
-- **pip**: Python 3.7 or higher (all platforms)
+- **pip**: Python 3.9 or higher (all platforms)
 - **Cloud Credentials**: Configured for your cloud provider (see [Authentication](#authentication))
 
 > **Note**: If using zsh (default on macOS), quotes around extras are required to prevent shell interpretation of brackets.

@@ -552,7 +552,7 @@
 </thead><tbody><tr>
 <td>Table</td>
 <td><code>-o table</code></td>
-<td>Beautiful ASCII table with colored headers (default)</td>
+<td>Rounded table with bold headers and type-aware coloring (default)</td>
 </tr>
 <tr>
 <td>JSON</td>
@@ -562,7 +562,7 @@
 <tr>
 <td>Pretty JSON</td>
 <td><code>-o jsonp</code></td>
-<td>Syntax-highlighted, indented JSON with colors</td>
+<td>Syntax-highlighted JSON, indented and colorized recursively</td>
 </tr>
 <tr>
 <td>CSV</td>
@@ -647,7 +647,7 @@
 </tbody></table></div><h3>Requirements</h3>
 <ul>
 <li><strong>Homebrew</strong>: macOS Apple Silicon (M1/M2/M3/M4). Intel Mac users should use pip.</li>
-<li><strong>pip</strong>: Python 3.7 or higher (all platforms)</li>
+<li><strong>pip</strong>: Python 3.9 or higher (all platforms)</li>
 <li><strong>Cloud Credentials</strong>: Configured for your cloud provider (see <a href="#authentication">Authentication</a>)</li>
 </ul>
 <blockquote>
@@ -942,6 +942,11 @@ cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet</code><b
 <td>Case-insensitive substring match</td>
 </tr>
 <tr>
+<td><code>not contains</code></td>
+<td><code>name not contains test</code></td>
+<td>Case-insensitive substring exclusion</td>
+</tr>
+<tr>
 <td><code>startswith</code></td>
 <td><code>email startswith admin</code></td>
 <td>String prefix match</td>
@@ -951,7 +956,10 @@ cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet</code><b
 <td><code>file endswith .csv</code></td>
 <td>String suffix match</td>
 </tr>
-</tbody></table></div><h3>Usage Examples</h3>
+</tbody></table></div><blockquote>
+<p><strong>One condition at a time.</strong> Compound clauses with <code>AND</code>/<code>OR</code> are not supported and are rejected with a clear error. CloudCat <strong>scans the file</strong> to apply <code>--where</code> and returns up to <code>--num-rows</code> matching rows.</p>
+</blockquote>
+<h3>Usage Examples</h3>
 <h4>Exact Match</h4>
 <div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Filter by status</span>
 cloudcat -p s3://bucket/users.parquet --<span class="hljs-built_in">where</span> <span class="hljs-string">&quot;status=active&quot;</span>
@@ -996,8 +1004,9 @@ cloudcat -p gcs://bucket/users.parquet --<span class="hljs-built_in">where</span
 <ul>
 <li>String values don&#39;t need quotes in the WHERE clause</li>
 <li>Comparisons are type-aware (numeric columns compare numerically)</li>
-<li>The <code>contains</code>, <code>startswith</code>, and <code>endswith</code> operators are case-insensitive</li>
-<li>For best performance, filter on columns that exist in your data</li>
+<li>The <code>contains</code>, <code>not contains</code>, <code>startswith</code>, and <code>endswith</code> operators are case-insensitive</li>
+<li><code>--where</code> scans the file to find matches, so it reads more than a plain <code>--num-rows</code> preview on large files</li>
+<li>Only a single condition is supported; <code>AND</code>/<code>OR</code> raises an error rather than mis-parsing</li>
 </ul>
 
 </section>
@@ -1207,15 +1216,17 @@ cloudcat -p gcs://bucket/data/</code><button class="copy-btn" aria-label="Copy c
 <h2>Output Formats</h2>
 <p>CloudCat supports multiple output formats to suit different workflows. Use the <code>-o, --output-format</code> option to choose.</p>
 <h3>Table (Default)</h3>
-<p>Beautiful ASCII tables with colored headers, perfect for terminal viewing:</p>
+<p>Rounded tables with bold headers and type-aware coloring (numbers cyan and
+right-aligned, booleans green/red, missing values shown as a dim <code>∘</code>). Colors
+are automatically disabled when output is piped or <code>--no-color</code> is set.</p>
 <div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/data.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Output:</p>
-<div class="code-block"><pre><code class="hljs language-plaintext">┌────────┬─────────────┬─────────────────────┬────────────────────┐
-│ id     │ name        │ email               │ created_at         │
-├────────┼─────────────┼─────────────────────┼────────────────────┤
-│ 1      │ Alice       │ alice@example.com   │ 2024-01-15 10:30   │
-│ 2      │ Bob         │ bob@example.com     │ 2024-01-15 11:45   │
-│ 3      │ Charlie     │ charlie@example.com │ 2024-01-16 09:00   │
-└────────┴─────────────┴─────────────────────┴────────────────────┘</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
+<div class="code-block"><pre><code class="hljs language-plaintext">╭──────┬─────────┬─────────────────────┬────────────────────╮
+│   id │ name    │ email               │ created_at         │
+├──────┼─────────┼─────────────────────┼────────────────────┤
+│    1 │ Alice   │ alice@example.com   │ 2024-01-15 10:30   │
+│    2 │ Bob     │ bob@example.com     │ 2024-01-15 11:45   │
+│    3 │ Charlie │ charlie@example.com │ 2024-01-16 09:00   │
+╰──────┴─────────┴─────────────────────┴────────────────────╯</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
 <ul>
 <li>Interactive terminal use</li>
 <li>Quick data inspection</li>
@@ -1241,16 +1252,22 @@ cloudcat -p gcs://bucket/users.parquet -o json | jq <span class="hljs-string">&#
 
 <span class="hljs-comment"># Count by field</span>
 cloudcat -p s3://bucket/logs.json -o json -n 0 | jq -s <span class="hljs-string">&#x27;group_by(.level) | map({level: .[0].level, count: length})&#x27;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Pretty JSON</h3>
-<p>Syntax-highlighted, indented JSON for human readability:</p>
+<p>Syntax-highlighted JSON, indented and colorized recursively at every level
+(keys, strings, numbers, booleans, and nulls each get their own color):</p>
 <div class="code-block"><pre><code class="hljs language-bash">cloudcat -p gcs://bucket/config.json -o jsonp</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Output:</p>
-<div class="code-block"><pre><code class="hljs language-json"><span class="hljs-punctuation">{</span>
-  <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Alice&quot;</span><span class="hljs-punctuation">,</span>
-  <span class="hljs-attr">&quot;metadata&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
-    <span class="hljs-attr">&quot;created&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2024-01-15&quot;</span><span class="hljs-punctuation">,</span>
-    <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span><span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-string">&quot;active&quot;</span><span class="hljs-punctuation">]</span>
+<div class="code-block"><pre><code class="hljs language-json"><span class="hljs-punctuation">[</span>
+  <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">&quot;id&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;Alice&quot;</span><span class="hljs-punctuation">,</span>
+    <span class="hljs-attr">&quot;metadata&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+      <span class="hljs-attr">&quot;created&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;2024-01-15&quot;</span><span class="hljs-punctuation">,</span>
+      <span class="hljs-attr">&quot;tags&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">[</span>
+        <span class="hljs-string">&quot;user&quot;</span><span class="hljs-punctuation">,</span>
+        <span class="hljs-string">&quot;active&quot;</span>
+      <span class="hljs-punctuation">]</span>
+    <span class="hljs-punctuation">}</span>
   <span class="hljs-punctuation">}</span>
-<span class="hljs-punctuation">}</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
+<span class="hljs-punctuation">]</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Best for:</p>
 <ul>
 <li>Viewing nested JSON structures</li>
 <li>Debugging API responses</li>
@@ -1701,14 +1718,18 @@ pytest</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://
 │   │   ├── avro.py
 │   │   ├── orc.py
 │   │   └── text.py
-│   └── storage/            # Cloud storage clients
-│       ├── base.py
-│       ├── gcs.py
-│       ├── s3.py
-│       └── azure.py
+│   ├── storage/            # Cloud storage clients
+│   │   ├── base.py
+│   │   ├── gcs.py
+│   │   ├── s3.py
+│   │   └── azure.py
+│   └── streaming/          # Streaming stats, byte tracking, pyarrow FS
+│       ├── stats.py
+│       ├── tracking.py
+│       └── filesystems.py
 ├── tests/
 ├── docs/
-├── setup.py
+├── pyproject.toml
 └── README.md</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Submitting Pull Requests</h3>
 <ol>
 <li>Fork the repository</li>

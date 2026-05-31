@@ -48,14 +48,18 @@ cloudcat/
 │   │   ├── avro.py
 │   │   ├── orc.py
 │   │   └── text.py
-│   └── storage/            # Cloud storage clients
-│       ├── base.py
-│       ├── gcs.py
-│       ├── s3.py
-│       └── azure.py
+│   ├── storage/            # Cloud storage clients
+│   │   ├── base.py
+│   │   ├── gcs.py
+│   │   ├── s3.py
+│   │   └── azure.py
+│   └── streaming/          # Streaming stats, byte tracking, pyarrow FS
+│       ├── stats.py
+│       ├── tracking.py
+│       └── filesystems.py
 ├── tests/
 ├── docs/
-├── setup.py
+├── pyproject.toml
 └── README.md
 ```
 
