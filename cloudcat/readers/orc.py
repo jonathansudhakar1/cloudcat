@@ -98,6 +98,38 @@ def read_orc_data_streaming(
     return _read_with_stream(stream, num_rows, col_names, stats)
 
 
+def _read_orc_rows(orc_file, num_rows: int, col_names: Optional[list]) -> pd.DataFrame:
+    """Read up to num_rows from an open ORCFile, stopping early by stripe.
+
+    Reading stripe-by-stripe avoids materializing the entire table when only a
+    small preview is requested.
+    """
+    if num_rows <= 0:
+        return orc_file.read(columns=col_names).to_pandas()
+
+    import pyarrow as pa
+    batches = []  # list of pyarrow.RecordBatch
+    rows_read = 0
+    for i in range(orc_file.nstripes):
+        if rows_read >= num_rows:
+            break
+        stripe = orc_file.read_stripe(i, columns=col_names)
+        if rows_read + stripe.num_rows > num_rows:
+            stripe = stripe.slice(0, num_rows - rows_read)
+        batches.append(stripe)
+        rows_read += stripe.num_rows
+
+    if not batches:
+        # Empty file: return a correctly-typed empty frame.
+        return orc_file.read(columns=col_names).to_pandas().head(0)
+    return pa.Table.from_batches(batches).to_pandas()
+
+
+def _full_schema_dtypes(orc_file) -> pd.Series:
+    """Derive the full (all-column) schema dtypes without reading any data."""
+    return orc_file.schema.empty_table().to_pandas().dtypes
+
+
 def _read_with_native_fs(
     filesystem: Any,
     path: str,
@@ -113,20 +145,11 @@ def _read_with_native_fs(
     with filesystem.open_input_file(path) as f:
         orc_file = orc.ORCFile(f)
 
-        # Read data with column projection
-        table = orc_file.read(columns=col_names)
-        full_df = table.to_pandas()
+        # Read data with column projection, stopping early by stripe.
+        full_df = _read_orc_rows(orc_file, num_rows, col_names)
 
-        # Apply num_rows limit
-        if num_rows > 0 and len(full_df) > num_rows:
-            full_df = full_df.head(num_rows)
-
-        # Get full schema
-        if col_names:
-            full_table = orc_file.read()
-            full_schema = full_table.to_pandas().dtypes
-        else:
-            full_schema = full_df.dtypes
+        # Full schema is derived from metadata only (no extra data read).
+        full_schema = _full_schema_dtypes(orc_file)
 
         # Estimate bytes read (ORC metadata access is limited)
         # Use file size from metadata if available
@@ -163,20 +186,11 @@ def _read_with_stream(
         # Read the ORC file
         orc_file = orc.ORCFile(temp_path)
 
-        # Read data with column projection
-        table = orc_file.read(columns=col_names)
-        full_df = table.to_pandas()
+        # Read data with column projection, stopping early by stripe.
+        full_df = _read_orc_rows(orc_file, num_rows, col_names)
 
-        # Apply num_rows limit
-        if num_rows > 0 and len(full_df) > num_rows:
-            full_df = full_df.head(num_rows)
-
-        # Get full schema
-        if col_names:
-            full_table = orc_file.read()
-            full_schema = full_table.to_pandas().dtypes
-        else:
-            full_schema = full_df.dtypes
+        # Full schema is derived from metadata only (no extra data read).
+        full_schema = _full_schema_dtypes(orc_file)
 
         return full_df, full_schema, stats
 

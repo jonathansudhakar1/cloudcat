@@ -72,7 +72,7 @@ def read_text_data_streaming(
             for line_bytes in stream:
                 if isinstance(line_bytes, bytes):
                     bytes_read += len(line_bytes)
-                    line = line_bytes.decode('utf-8').rstrip('\n\r')
+                    line = line_bytes.decode('utf-8', errors='replace').rstrip('\n\r')
                 else:
                     bytes_read += len(line_bytes.encode('utf-8'))
                     line = line_bytes.rstrip('\n\r')
@@ -87,16 +87,17 @@ def read_text_data_streaming(
             content = stream.read()
             if isinstance(content, bytes):
                 bytes_read = len(content)
-                content = content.decode('utf-8')
+                content = content.decode('utf-8', errors='replace')
             else:
                 bytes_read = len(content.encode('utf-8'))
             lines = content.splitlines()
     else:
-        # File path - read all
+        # File path - read all (binary read so non-UTF-8 bytes degrade gracefully)
         stats.is_streaming = False
-        with open(stream, 'r') as f:
-            content = f.read()
-            bytes_read = len(content.encode('utf-8'))
+        with open(stream, 'rb') as f:
+            raw = f.read()
+            bytes_read = len(raw)
+            content = raw.decode('utf-8', errors='replace')
             lines = content.splitlines()
 
         if num_rows > 0:

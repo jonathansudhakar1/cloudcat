@@ -1,93 +1,157 @@
-"""Output formatting utilities."""
+"""Output formatting utilities.
+
+Rendering is type-aware and colorized for terminals. Colors are emitted
+unconditionally here; the CLI initializes colorama to strip them when output is
+piped, when --no-color is set, or when writing to a file.
+"""
 
 import json
 import pandas as pd
 from tabulate import tabulate
 from colorama import Fore, Style
 
+# --- Palette ---------------------------------------------------------------
+_HEADER = Fore.CYAN + Style.BRIGHT   # table headers / json keys (bold)
+_KEY = Fore.BLUE                     # json object keys
+_NUM = Fore.CYAN                     # numbers
+_STR = Fore.GREEN                    # strings (json)
+_TRUE = Fore.GREEN                   # boolean true
+_FALSE = Fore.RED                    # boolean false
+_NULL = Style.DIM                    # null / missing
+_RESET = Style.RESET_ALL
 
-def _colorize_value(value) -> str:
-    """Colorize a single JSON value based on its type."""
-    # Check bool before int since bool is subclass of int
-    if isinstance(value, str):
-        return f'{Fore.GREEN}"{value}"{Style.RESET_ALL}'
-    elif isinstance(value, bool):
-        return f'{Fore.YELLOW}{str(value).lower()}{Style.RESET_ALL}'
-    elif isinstance(value, (int, float)):
-        return f'{Fore.CYAN}{value}{Style.RESET_ALL}'
-    elif value is None:
-        return f'{Fore.RED}null{Style.RESET_ALL}'
-    else:
-        # For complex types (lists, nested dicts), just convert to string
-        return f'{json.dumps(value)}'
+_NULL_MARKER = "∘"  # ∘  shown for missing table cells
 
 
-def colorize_json(json_str: str) -> str:
-    """Add colors to JSON for better readability.
-
-    Args:
-        json_str: JSON string to colorize.
-
-    Returns:
-        Colorized JSON string for terminal display.
-    """
-    parsed = json.loads(json_str)
-
-    # Handle non-list JSON (single object or primitive)
-    if not isinstance(parsed, list):
-        if isinstance(parsed, dict):
-            return _colorize_dict(parsed)
-        return _colorize_value(parsed)
-
-    result = []
-    for item in parsed:
-        # Handle non-dict items in the array
-        if not isinstance(item, dict):
-            result.append(_colorize_value(item))
-            continue
-
-        result.append(_colorize_dict(item))
-
-    return '\n'.join(result)
+# --- Shared helpers --------------------------------------------------------
+def _is_null(value) -> bool:
+    """True if a scalar value is null/NaN. Safe for non-scalars (lists/dicts)."""
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
 
 
-def _colorize_dict(item: dict) -> str:
-    """Colorize a single dictionary."""
-    item_parts = []
-    item_parts.append('{')
+def _num_to_str(value) -> str:
+    """Render a number faithfully (no forced decimals, no precision loss)."""
+    return str(value)
 
-    for i, (key, value) in enumerate(item.items()):
-        # Format key
-        key_str = f'  {Fore.BLUE}"{key}"{Style.RESET_ALL}: '
-        val_str = _colorize_value(value)
 
-        # Add comma if not the last item
-        if i < len(item) - 1:
-            item_parts.append(f"{key_str}{val_str},")
-        else:
-            item_parts.append(f"{key_str}{val_str}")
+# --- Table -----------------------------------------------------------------
+def _column_kind(dtype) -> str:
+    """Classify a column dtype as 'bool', 'num', or 'other'."""
+    # bool must be checked first: is_numeric_dtype is True for bool too.
+    if pd.api.types.is_bool_dtype(dtype):
+        return "bool"
+    if pd.api.types.is_numeric_dtype(dtype):
+        return "num"
+    return "other"
 
-    item_parts.append('}')
-    return '\n'.join(item_parts)
+
+def _format_table_cell(value, kind: str) -> str:
+    """Colorize a single table cell based on its column kind / value type."""
+    if _is_null(value):
+        return f"{_NULL}{_NULL_MARKER}{_RESET}"
+
+    if kind == "bool" or isinstance(value, bool):
+        return f"{_TRUE}true{_RESET}" if value else f"{_FALSE}false{_RESET}"
+
+    if kind == "num" or (isinstance(value, (int, float)) and not isinstance(value, bool)):
+        return f"{_NUM}{_num_to_str(value)}{_RESET}"
+
+    # Strings and everything else: default terminal color.
+    return str(value)
 
 
 def format_table_with_colored_header(df: pd.DataFrame) -> str:
-    """Format a dataframe as a table with colored and bold headers.
+    """Format a DataFrame as a rounded, type-colored table.
+
+    Headers are bold cyan; numbers are cyan and right-aligned; booleans render
+    as colored true/false; missing values render as a dim ∘. Cells are
+    pre-formatted (and numbers explicitly right-aligned) with number parsing
+    disabled so the embedded color codes never disturb column alignment.
 
     Args:
         df: DataFrame to format.
 
     Returns:
-        Formatted table string with colored headers.
+        Formatted table string.
     """
     if df.empty:
         return "Empty dataset"
 
-    # Get the column headers and format them
-    headers = [f"{Fore.CYAN}{Style.BRIGHT}{col}{Style.RESET_ALL}" for col in df.columns]
+    headers = [f"{_HEADER}{col}{_RESET}" for col in df.columns]
+    kinds = [_column_kind(df[col].dtype) for col in df.columns]
+    colalign = ["right" if kind == "num" else "left" for kind in kinds]
 
-    # Convert the dataframe to a list of lists for tabulate
-    data = df.values.tolist()
+    rows = [
+        [_format_table_cell(value, kind) for value, kind in zip(row, kinds)]
+        for row in df.itertuples(index=False, name=None)
+    ]
 
-    # Use tabulate with the formatted headers
-    return tabulate(data, headers, tablefmt='psql')
+    return tabulate(
+        rows,
+        headers,
+        tablefmt="rounded_outline",
+        colalign=colalign,
+        disable_numparse=True,
+    )
+
+
+# --- JSON (pretty) ---------------------------------------------------------
+def _colorize_scalar(value) -> str:
+    """Colorize a single JSON scalar value."""
+    # Check bool before int/float since bool is a subclass of int.
+    if isinstance(value, bool):
+        return f"{_TRUE}true{_RESET}" if value else f"{_FALSE}false{_RESET}"
+    if value is None:
+        return f"{_NULL}null{_RESET}"
+    if isinstance(value, (int, float)):
+        return f"{_NUM}{json.dumps(value)}{_RESET}"
+    if isinstance(value, str):
+        return f"{_STR}{json.dumps(value)}{_RESET}"
+    # Fallback for anything unexpected.
+    return json.dumps(value)
+
+
+def _render_json(value, depth: int) -> str:
+    """Recursively render a parsed JSON value with indentation and color."""
+    indent = "  " * (depth + 1)
+    closing_indent = "  " * depth
+
+    if isinstance(value, dict):
+        if not value:
+            return "{}"
+        items = ",\n".join(
+            f"{indent}{_KEY}{json.dumps(key)}{_RESET}: {_render_json(val, depth + 1)}"
+            for key, val in value.items()
+        )
+        return "{\n" + items + "\n" + closing_indent + "}"
+
+    if isinstance(value, list):
+        if not value:
+            return "[]"
+        items = ",\n".join(
+            f"{indent}{_render_json(item, depth + 1)}" for item in value
+        )
+        return "[\n" + items + "\n" + closing_indent + "]"
+
+    return _colorize_scalar(value)
+
+
+def colorize_json(json_str: str) -> str:
+    """Pretty-print and colorize a JSON string for terminal display.
+
+    Nested arrays and objects are indented and colorized recursively.
+
+    Args:
+        json_str: JSON string to colorize.
+
+    Returns:
+        Indented, colorized JSON string.
+    """
+    try:
+        parsed = json.loads(json_str)
+    except (json.JSONDecodeError, ValueError):
+        return json_str
+    return _render_json(parsed, 0)

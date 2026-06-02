@@ -19,6 +19,7 @@ cloudcat [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-o, --output-format TEXT` | `table` | Output format: `table`, `json`, `jsonp`, `csv` |
+| `-O, --output-file PATH` | none | Write rendered data to a file instead of stdout |
 | `-i, --input-format TEXT` | auto-detect | Input format: `csv`, `json`, `parquet`, `avro`, `orc`, `text` |
 
 ### Data Selection Options
@@ -33,7 +34,7 @@ cloudcat [OPTIONS]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-w, --where TEXT` | none | Filter rows with SQL-like conditions |
+| `-w, --where TEXT` | none | Filter rows with SQL-like conditions (scans the file, returns up to `--num-rows` matches) |
 | `-s, --schema TEXT` | `show` | Schema display: `show`, `dont_show`, `schema_only` |
 | `--count` | false | Show total record count (scans entire file) |
 
@@ -63,6 +64,7 @@ cloudcat [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
+| `--no-color` | Disable colored output (also honors the `NO_COLOR` env var). Color is auto-disabled when output is piped. |
 | `-y, --yes` | Skip confirmation prompts (for scripting) |
 | `--help` | Show help message and exit |
 

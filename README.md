@@ -408,6 +408,8 @@ Options:
   -o, --output-format TEXT     Output format: table, json, jsonp, csv
                                [default: table]
 
+  -O, --output-file PATH       Write rendered data to a file instead of stdout
+
   -i, --input-format TEXT      Input format: csv, json, parquet, avro, orc, text
                                [default: auto-detect from extension]
 
@@ -420,7 +422,8 @@ Options:
   --offset INTEGER             Skip first N rows
                                [default: 0]
 
-  -w, --where TEXT             Filter rows with SQL-like conditions
+  -w, --where TEXT             Filter rows with SQL-like conditions. Scans the
+                               file and returns up to --num-rows matching rows.
                                Examples: "status=active", "age>30",
                                "name contains john", "email endswith @gmail.com"
 
@@ -438,13 +441,18 @@ Options:
   -d, --delimiter TEXT         CSV delimiter (use \t for tab)
                                [default: comma]
 
+  --no-color                   Disable colored output (also honors NO_COLOR).
+                               Color is auto-disabled when output is piped.
+
   --profile TEXT               AWS profile name (for S3 access)
 
   --project TEXT               GCP project ID (for GCS access)
 
   --credentials TEXT           Path to GCP service account JSON file
 
-  --account TEXT               Azure storage account name
+  --az-access-key TEXT         Azure storage account access key
+
+  -y, --yes                    Skip confirmation prompts (for scripting)
 
   --help                       Show this message and exit
 ```
@@ -627,8 +635,8 @@ pytest
 - [x] SQL-like filtering (`--where` clause)
 - [x] Compression support (gzip, zstd, lz4, snappy, bz2)
 - [x] Row offset/pagination (`--offset`)
+- [x] Output to file with `--output-file`
 - [ ] Interactive mode with pagination
-- [ ] Output to file with `--output-file`
 - [ ] Configuration file support
 
 ## Related Projects

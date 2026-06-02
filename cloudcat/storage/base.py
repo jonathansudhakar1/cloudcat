@@ -27,13 +27,11 @@ def parse_cloud_path(path: str) -> Tuple[str, str, str]:
         service = 's3'
         bucket = parsed.netloc
         object_path = parsed.path.lstrip('/')
-    elif parsed.scheme == 'az' or parsed.scheme == 'azure':
-        service = 'azure'
-        bucket = parsed.netloc  # This is the container name
-        object_path = parsed.path.lstrip('/')
     elif parsed.scheme == 'abfss':
         # Azure Data Lake Storage Gen2 (ADLS Gen2)
         # Format: abfss://container@storageaccount.dfs.core.windows.net/path
+        # The storage account is encoded in the host, which is why bare az://
+        # URLs are not supported — they carry no account information.
         service = 'azure'
         netloc = parsed.netloc
         if '@' in netloc:
@@ -41,14 +39,17 @@ def parse_cloud_path(path: str) -> Tuple[str, str, str]:
             # Store storage account info for later use
             from ..config import cloud_config
             # Extract account name from storage_account (e.g., "account.dfs.core.windows.net")
-            account_name = storage_account.split('.')[0]
-            if not cloud_config.azure_account:
-                cloud_config.azure_account = account_name
+            # Always assign so a second URL with a different account is honored
+            # (avoids a stale account latching across paths in one process).
+            cloud_config.azure_account = storage_account.split('.')[0]
         else:
             bucket = netloc
         object_path = parsed.path.lstrip('/')
     else:
-        raise ValueError(f"Unsupported scheme: {parsed.scheme}. Use gcs://, s3://, or abfss://")
+        raise ValueError(
+            f"Unsupported scheme: {parsed.scheme or '(none)'}. "
+            "Use gs://, gcs://, s3://, or abfss://."
+        )
 
     return service, bucket, object_path
 

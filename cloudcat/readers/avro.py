@@ -84,41 +84,38 @@ def read_avro_data_streaming(
     col_names = [c.strip() for c in columns.split(',')] if columns else None
     stats.columns_requested = col_names
 
-    # Read the Avro file
+    def _consume(reader):
+        """Materialize records (and the first full record for schema)."""
+        records = []
+        full_schema_record = None
+        for i, record in enumerate(reader):
+            if num_rows > 0 and i >= num_rows:
+                break
+            # Store first full record for schema
+            if full_schema_record is None:
+                full_schema_record = record.copy()
+            # Apply column filtering at record level for efficiency
+            if col_names:
+                records.append({k: v for k, v in record.items() if k in col_names})
+            else:
+                records.append(record)
+        return records, full_schema_record
+
+    # Read the Avro file. Records must be consumed while the underlying file
+    # handle is still open, so the path branch iterates inside the `with`.
     bytes_read = 0
     if hasattr(stream, 'read'):
-        # Track initial position if possible
         start_pos = stream.tell() if hasattr(stream, 'tell') else 0
-        reader = fastavro.reader(stream)
+        records, full_schema_record = _consume(fastavro.reader(stream))
+        # Try to get bytes read from stream position
+        if hasattr(stream, 'tell'):
+            try:
+                bytes_read = stream.tell() - start_pos
+            except Exception:
+                bytes_read = 0
     else:
         with open(stream, 'rb') as f:
-            reader = fastavro.reader(f)
-
-    # Read records into a list, optionally filtering columns at record level
-    records = []
-    full_schema_record = None
-
-    for i, record in enumerate(reader):
-        if num_rows > 0 and i >= num_rows:
-            break
-
-        # Store first full record for schema
-        if full_schema_record is None:
-            full_schema_record = record.copy()
-
-        # Apply column filtering at record level for efficiency
-        if col_names:
-            filtered_record = {k: v for k, v in record.items() if k in col_names}
-            records.append(filtered_record)
-        else:
-            records.append(record)
-
-    # Try to get bytes read from stream position
-    if hasattr(stream, 'tell'):
-        try:
-            bytes_read = stream.tell() - start_pos
-        except Exception:
-            bytes_read = 0
+            records, full_schema_record = _consume(fastavro.reader(f))
 
     stats.bytes_read = bytes_read
 

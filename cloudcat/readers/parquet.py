@@ -226,15 +226,13 @@ def _read_with_stream(
 
 
 def _get_schema_from_metadata(parquet_file) -> pd.Series:
-    """Extract full schema from Parquet file."""
-    if parquet_file.num_row_groups > 0:
-        sample_table = parquet_file.read_row_group(0)
-        if sample_table.num_rows > 1:
-            sample_table = sample_table.slice(0, 1)
-        full_df = sample_table.to_pandas()
-    else:
-        full_df = pd.DataFrame()
-    return full_df.dtypes
+    """Extract the full schema from Parquet metadata without reading any data.
+
+    Uses the Arrow schema (already loaded with the file footer) rather than
+    reading row group 0, which would transfer real column data just to learn
+    the dtypes.
+    """
+    return parquet_file.schema_arrow.empty_table().to_pandas().dtypes
 
 
 def _estimate_bytes_read(

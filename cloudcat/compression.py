@@ -88,7 +88,11 @@ def decompress_stream(stream: Union[BinaryIO, bytes], compression: str) -> io.By
         if not HAS_ZSTD:
             raise ValueError("zstandard package is required for .zst files. Install with: pip install zstandard")
         dctx = zstd.ZstdDecompressor()
-        decompressed = dctx.decompress(data)
+        # Use stream_reader (not decompress()) so multi-frame zstd data is fully
+        # decoded. dctx.decompress() only reads the first frame, silently
+        # truncating concatenated-frame files (or raising when frames omit the
+        # content size from their header).
+        decompressed = dctx.stream_reader(io.BytesIO(data)).read()
     elif compression == 'lz4':
         if not HAS_LZ4:
             raise ValueError("lz4 package is required for .lz4 files. Install with: pip install lz4")

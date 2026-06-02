@@ -28,6 +28,15 @@ def parse_where_clause(where_clause: str) -> Tuple[str, str, str]:
     """
     # Handle multi-word operators first (longer ones first to avoid partial matches)
     lower_clause = where_clause.lower()
+
+    # Compound conditions are not supported and would otherwise mis-parse
+    # silently (AND -> "column not found"; OR -> empty result). Fail clearly.
+    if ' and ' in lower_clause or ' or ' in lower_clause:
+        raise ValueError(
+            "Compound conditions with AND/OR are not supported. "
+            "Use a single condition, e.g. column=value."
+        )
+
     for op in ['not contains', 'contains', 'startswith', 'endswith']:
         if f' {op} ' in lower_clause:
             # Find the operator position in the lowercase string

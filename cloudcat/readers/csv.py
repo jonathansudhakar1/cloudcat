@@ -6,7 +6,7 @@ import pandas as pd
 import click
 from colorama import Fore, Style
 
-from ..streaming import StreamingStats
+from ..streaming import StreamingStats, BytesTrackingStream
 
 
 def read_csv_data(
@@ -68,6 +68,11 @@ def read_csv_data_streaming(
     col_names = [c.strip() for c in columns.split(',')] if columns else None
     stats.columns_requested = col_names
 
+    # Wrap the source in a tracking stream so bytes_read reflects the bytes
+    # actually pulled from the source, not the in-memory DataFrame footprint.
+    stats.bytes_read = 0
+    tracked = BytesTrackingStream(stream, stats) if hasattr(stream, 'read') else stream
+
     pd_args = {}
     if delimiter:
         pd_args['delimiter'] = delimiter
@@ -80,16 +85,11 @@ def read_csv_data_streaming(
 
         chunks = []
         rows_collected = 0
-        bytes_read = 0
 
         try:
-            reader = pd.read_csv(stream, **pd_args)
+            reader = pd.read_csv(tracked, **pd_args)
 
             for chunk in reader:
-                # Track approximate bytes (chunk size * avg row size estimate)
-                chunk_bytes = chunk.memory_usage(deep=True).sum()
-                bytes_read += chunk_bytes
-
                 remaining = num_rows - rows_collected
                 if len(chunk) > remaining:
                     chunk = chunk.head(remaining)
@@ -101,13 +101,21 @@ def read_csv_data_streaming(
                     break
 
         except Exception as e:
-            # If chunked reading fails, fall back to regular read
-            if hasattr(stream, 'seek'):
-                stream.seek(0)
+            # If chunked reading fails, fall back to a regular read — but only
+            # if we can rewind the stream. Non-seekable streams (e.g. a zstd
+            # stream_reader) raise on seek(0); in that case re-raise the original
+            # parse error rather than masking it with a confusing seek error.
+            if hasattr(stream, 'seek') and getattr(stream, 'seekable', lambda: True)():
+                try:
+                    stream.seek(0)
+                    stats.bytes_read = 0
+                except (OSError, ValueError):
+                    raise e
+            else:
+                raise e
             pd_args.pop('chunksize', None)
             pd_args['nrows'] = num_rows
-            full_df = pd.read_csv(stream, **pd_args)
-            stats.bytes_read = full_df.memory_usage(deep=True).sum()
+            full_df = pd.read_csv(tracked, **pd_args)
             stats.is_streaming = False
             return _apply_column_filter(full_df, col_names, stats)
 
@@ -115,12 +123,9 @@ def read_csv_data_streaming(
             full_df = pd.concat(chunks, ignore_index=True)
         else:
             full_df = pd.DataFrame()
-
-        stats.bytes_read = bytes_read
     else:
         # No row limit - read all data
-        full_df = pd.read_csv(stream, **pd_args)
-        stats.bytes_read = full_df.memory_usage(deep=True).sum()
+        full_df = pd.read_csv(tracked, **pd_args)
         stats.is_streaming = False
 
     return _apply_column_filter(full_df, col_names, stats)
