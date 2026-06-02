@@ -71,6 +71,17 @@ function generateNav() {
   ).join('\n');
 }
 
+// Read the package version from cloudcat/__init__.py (single source of truth)
+function getVersion() {
+  try {
+    const initPy = readFileSync(join(__dirname, '..', 'cloudcat', '__init__.py'), 'utf-8');
+    const match = initPy.match(/__version__\s*=\s*["']([^"']+)["']/);
+    return match ? match[1] : '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
 // Generate sitemap
 function generateSitemap() {
   const today = new Date().toISOString().split('T')[0];
@@ -112,6 +123,9 @@ function build() {
   // Generate navigation
   const nav = generateNav();
 
+  // Resolve current version from the package
+  const version = getVersion();
+
   // Build sections HTML
   let sectionsHtml = '';
   for (const section of sections) {
@@ -122,6 +136,7 @@ function build() {
   let html = template
     .replace('{{NAV}}', nav)
     .replace('{{SECTIONS}}', sectionsHtml)
+    .replace(/\{\{VERSION\}\}/g, version)
     .replace(/\{\{BUILD_DATE\}\}/g, new Date().toISOString());
 
   // Write output
