@@ -68,7 +68,7 @@
         "priceCurrency": "USD"
       },
       "description": "CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats.",
-      "softwareVersion": "0.4.0",
+      "softwareVersion": "0.5.1",
       "author": {
         "@type": "Person",
         "name": "Jonathan Sudhakar"
@@ -1466,17 +1466,20 @@ disk before touching cloud data</li>
 — a compact reference that teaches an agent the optimal scanning recipes
 (schema discovery, filtered sampling, counts, column profiling) without a
 <code>--help</code> roundtrip or trial-and-error.</p>
-<p>Install it for <strong>Claude Code</strong>:</p>
-<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># For every project (personal skills directory)</span>
-<span class="hljs-built_in">mkdir</span> -p ~/.claude/skills
-curl -fsSL --create-dirs -o ~/.claude/skills/cloudcat/SKILL.md \
-  https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
-
-<span class="hljs-comment"># Or for a single project</span>
-<span class="hljs-built_in">mkdir</span> -p .claude/skills
-curl -fsSL --create-dirs -o .claude/skills/cloudcat/SKILL.md \
+<p>Install it — pick whichever channel fits:</p>
+<p><strong>Built-in installer</strong> (the skill ships inside the pip/brew package, works offline):</p>
+<div class="code-block"><pre><code class="hljs language-bash">cloudcat --install-skill claude          <span class="hljs-comment"># Claude Code, all projects (~/.claude/skills)</span>
+cloudcat --install-skill claude-project  <span class="hljs-comment"># Claude Code, this project (./.claude/skills)</span>
+cloudcat --install-skill codex           <span class="hljs-comment"># OpenAI Codex CLI (~/.codex/skills)</span>
+cloudcat --install-skill <span class="hljs-built_in">print</span>           <span class="hljs-comment"># stdout — pipe anywhere</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p><strong>Claude Code plugin marketplace</strong> (the repo is its own marketplace):</p>
+<div class="code-block"><pre><code class="hljs language-plaintext">/plugin marketplace add jonathansudhakar1/cloudcat
+/plugin install cloudcat@cloudcat</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p><strong>Direct fetch</strong> (no cloudcat install needed):</p>
+<div class="code-block"><pre><code class="hljs language-bash">curl -fsSL --create-dirs -o ~/.claude/skills/cloudcat/SKILL.md \
   https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Any other agent framework that supports the SKILL.md format (or plain
-markdown instructions) can use the same file.</p>
+markdown instructions) can use <code>--install-skill print</code> to pipe the same
+content wherever it belongs. The skill also includes setup instructions,
+so an agent that has the skill but not the CLI installs it itself
+(<code>pip install &#39;cloudcat[all]&#39;</code>).</p>
 <h3>What the skill teaches</h3>
 <div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Structure, no data read</span>
 cloudcat s3://bucket/events/ -s schema_only -y

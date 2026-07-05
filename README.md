@@ -653,15 +653,21 @@ The repo ships an [Agent Skill](https://agentskills.io) at
 that teaches agents the optimal scanning recipes (schema discovery, filtered
 sampling, metadata-fast counts, column profiling) with zero trial-and-error.
 
-Install for **Claude Code**:
+Install the skill (pick one):
 
 ```bash
-# All projects (personal skills)
-curl -fsSL --create-dirs -o ~/.claude/skills/cloudcat/SKILL.md \
-  https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
+# 1. Built-in installer — the skill ships inside the package (works offline)
+cloudcat --install-skill claude          # Claude Code, all projects (~/.claude/skills)
+cloudcat --install-skill claude-project  # Claude Code, this project (./.claude/skills)
+cloudcat --install-skill codex           # OpenAI Codex CLI (~/.codex/skills)
+cloudcat --install-skill print           # stdout — pipe into any other agent's instructions
 
-# Single project
-curl -fsSL --create-dirs -o .claude/skills/cloudcat/SKILL.md \
+# 2. Claude Code plugin marketplace
+/plugin marketplace add jonathansudhakar1/cloudcat
+/plugin install cloudcat@cloudcat
+
+# 3. Or fetch it directly (no cloudcat install needed)
+curl -fsSL --create-dirs -o ~/.claude/skills/cloudcat/SKILL.md \
   https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
 ```
 

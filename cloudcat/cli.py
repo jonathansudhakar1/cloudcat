@@ -840,6 +840,43 @@ def _print_completion(ctx, param, value):
     ctx.exit()
 
 
+# Where each agent expects personal skills (name -> path builder).
+_SKILL_DESTINATIONS = {
+    'claude': lambda: os.path.join(os.path.expanduser('~'), '.claude', 'skills', 'cloudcat', 'SKILL.md'),
+    'claude-project': lambda: os.path.join('.claude', 'skills', 'cloudcat', 'SKILL.md'),
+    'codex': lambda: os.path.join(os.path.expanduser('~'), '.codex', 'skills', 'cloudcat', 'SKILL.md'),
+}
+
+
+def _install_skill(ctx, param, value):
+    """Eager callback: install the bundled agent skill and exit.
+
+    The skill (an agentskills.io SKILL.md teaching agents the optimal
+    cloudcat scanning recipes) ships inside the package, so any pip/brew
+    install can deploy it without network access. 'print' writes it to
+    stdout for piping into any other agent's instruction file.
+    """
+    if not value or ctx.resilient_parsing:
+        return
+    try:
+        from importlib.resources import files
+        content = (files('cloudcat') / 'data' / 'SKILL.md').read_text(encoding='utf-8')
+    except Exception as e:
+        click.echo(f"Error: bundled skill not found ({e})", err=True)
+        ctx.exit(1)
+
+    if value == 'print':
+        click.echo(content)
+        ctx.exit()
+
+    destination = _SKILL_DESTINATIONS[value]()
+    os.makedirs(os.path.dirname(destination), exist_ok=True)
+    with open(destination, 'w', encoding='utf-8') as f:
+        f.write(content)
+    click.echo(f"Installed the cloudcat agent skill to {destination}")
+    ctx.exit()
+
+
 def _column_stats(df: pd.DataFrame) -> pd.DataFrame:
     """Profile each column of a frame: type, nulls, distinct values, range."""
     rows = []
@@ -912,6 +949,10 @@ def _render_data(df: pd.DataFrame, output_format: str) -> str:
 @click.option('--completion', type=click.Choice(['bash', 'zsh', 'fish']), is_eager=True,
               expose_value=False, callback=_print_completion,
               help='Print the shell completion script and exit (e.g. eval "$(cloudcat --completion zsh)")')
+@click.option('--install-skill', type=click.Choice(['claude', 'claude-project', 'codex', 'print']),
+              is_eager=True, expose_value=False, callback=_install_skill,
+              help='Install the bundled AI-agent skill: claude (~/.claude/skills), '
+                   'claude-project (./.claude/skills), codex (~/.codex/skills), or print to stdout')
 @click.option('--profile', help='AWS profile name (for S3 access)')
 @click.option('--project', help='GCP project ID (for GCS access)')
 @click.option('--credentials', help='Path to GCP service account JSON file')

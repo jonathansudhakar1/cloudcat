@@ -26,22 +26,36 @@ The repository ships an [Agent Skill](https://agentskills.io) —
 (schema discovery, filtered sampling, counts, column profiling) without a
 `--help` roundtrip or trial-and-error.
 
-Install it for **Claude Code**:
+Install it — pick whichever channel fits:
+
+**Built-in installer** (the skill ships inside the pip/brew package, works offline):
 
 ```bash
-# For every project (personal skills directory)
-mkdir -p ~/.claude/skills
-curl -fsSL --create-dirs -o ~/.claude/skills/cloudcat/SKILL.md \
-  https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
+cloudcat --install-skill claude          # Claude Code, all projects (~/.claude/skills)
+cloudcat --install-skill claude-project  # Claude Code, this project (./.claude/skills)
+cloudcat --install-skill codex           # OpenAI Codex CLI (~/.codex/skills)
+cloudcat --install-skill print           # stdout — pipe anywhere
+```
 
-# Or for a single project
-mkdir -p .claude/skills
-curl -fsSL --create-dirs -o .claude/skills/cloudcat/SKILL.md \
+**Claude Code plugin marketplace** (the repo is its own marketplace):
+
+```
+/plugin marketplace add jonathansudhakar1/cloudcat
+/plugin install cloudcat@cloudcat
+```
+
+**Direct fetch** (no cloudcat install needed):
+
+```bash
+curl -fsSL --create-dirs -o ~/.claude/skills/cloudcat/SKILL.md \
   https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
 ```
 
 Any other agent framework that supports the SKILL.md format (or plain
-markdown instructions) can use the same file.
+markdown instructions) can use `--install-skill print` to pipe the same
+content wherever it belongs. The skill also includes setup instructions,
+so an agent that has the skill but not the CLI installs it itself
+(`pip install 'cloudcat[all]'`).
 
 ### What the skill teaches
 

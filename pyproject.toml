@@ -85,6 +85,9 @@ Source = "https://github.com/jonathansudhakar1/cloudcat"
 [tool.setuptools]
 packages = ["cloudcat", "cloudcat.readers", "cloudcat.storage", "cloudcat.streaming"]
 
+[tool.setuptools.package-data]
+cloudcat = ["data/*.md"]
+
 [tool.setuptools.dynamic]
 version = { attr = "cloudcat.__version__" }
 
