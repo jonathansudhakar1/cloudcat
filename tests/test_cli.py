@@ -92,7 +92,7 @@ class TestCLI:
         ])
 
         assert result.exit_code == 0
-        mock_read.assert_called_with("s3", "bucket", "file.json", "json", 2, None, None, 0)
+        mock_read.assert_called_with("s3", "bucket", "file.json", "json", 2, None, None, 0, where=None)
 
     @patch('cloudcat.cli.read_data_streaming')
     @patch('cloudcat.cli.parse_cloud_path')
@@ -108,7 +108,7 @@ class TestCLI:
         ])
 
         assert result.exit_code == 0
-        mock_read.assert_called_with("gcs", "bucket", "file.csv", "csv", 10, "name,age", None, 0)
+        mock_read.assert_called_with("gcs", "bucket", "file.csv", "csv", 10, "name,age", None, 0, where=None)
 
     @patch('cloudcat.cli.read_data_streaming')
     @patch('cloudcat.cli.parse_cloud_path')
@@ -124,7 +124,7 @@ class TestCLI:
         ])
 
         assert result.exit_code == 0
-        mock_read.assert_called_with("gcs", "bucket", "file.csv", "csv", 10, None, "\t", 0)
+        mock_read.assert_called_with("gcs", "bucket", "file.csv", "csv", 10, None, "\t", 0, where=None)
 
     @patch('cloudcat.cli.read_data_streaming')
     @patch('cloudcat.cli.parse_cloud_path')
@@ -140,7 +140,7 @@ class TestCLI:
         ])
 
         assert result.exit_code == 0
-        mock_read.assert_called_with("s3", "bucket", "file.csv", "csv", 10, None, None, 5)
+        mock_read.assert_called_with("s3", "bucket", "file.csv", "csv", 10, None, None, 5, where=None)
 
     @patch('cloudcat.cli.read_data_streaming')
     @patch('cloudcat.cli.parse_cloud_path')
@@ -157,7 +157,7 @@ class TestCLI:
         ])
 
         assert result.exit_code == 0
-        mock_read.assert_called_with("gcs", "bucket", "file.json", "json", 20, None, None, 10)
+        mock_read.assert_called_with("gcs", "bucket", "file.json", "json", 20, None, None, 10, where=None)
 
     @patch('cloudcat.cli.find_first_non_empty_file')
     @patch('cloudcat.cli.read_data_streaming')
@@ -240,7 +240,7 @@ class TestCLI:
         result = self.runner.invoke(main, [])
 
         assert result.exit_code != 0
-        assert "Missing option '--path'" in result.output
+        assert "Missing PATH" in result.output
 
     @patch('cloudcat.cli.parse_cloud_path')
     def test_invalid_cloud_path(self, mock_parse):

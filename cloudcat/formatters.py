@@ -81,7 +81,9 @@ def format_table_with_colored_header(df: pd.DataFrame) -> str:
         return "Empty dataset"
 
     headers = [f"{_HEADER}{col}{_RESET}" for col in df.columns]
-    kinds = [_column_kind(df[col].dtype) for col in df.columns]
+    # Iterate dtypes positionally: df[col] on a duplicated column name (legal
+    # in Parquet) returns a DataFrame, which has no .dtype and would crash.
+    kinds = [_column_kind(dtype) for dtype in df.dtypes]
     colalign = ["right" if kind == "num" else "left" for kind in kinds]
 
     rows = [

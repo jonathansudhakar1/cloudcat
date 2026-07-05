@@ -55,11 +55,19 @@ class TestZstdMultiFrame:
         assert out == b"hello\nworld\n"
 
 
-class TestCompoundWhereRejected:
+class TestCompoundWhereParsing:
+    """Compound AND/OR is now supported via parse_where_expression;
+    the single-condition parser still rejects raw compound input."""
+
     @pytest.mark.parametrize("clause", ["a=1 and b=2", "x>3 or y<5", "A=1 AND B=2"])
-    def test_compound_raises(self, clause):
-        with pytest.raises(ValueError, match="Compound conditions"):
+    def test_single_condition_parser_rejects_compound(self, clause):
+        with pytest.raises(ValueError):
             parse_where_clause(clause)
+
+    def test_expression_parser_accepts_compound(self):
+        from cloudcat.filtering import parse_where_expression
+        assert parse_where_expression("a=1 and b=2") == [[("a", "=", "1"), ("b", "=", "2")]]
+        assert parse_where_expression("x>3 or y<5") == [[("x", ">", "3")], [("y", "<", "5")]]
 
     def test_single_condition_still_parses(self):
         assert parse_where_clause("status=active") == ("status", "=", "active")

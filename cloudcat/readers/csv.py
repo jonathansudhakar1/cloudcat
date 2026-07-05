@@ -41,12 +41,15 @@ def read_csv_data_streaming(
     num_rows: int,
     columns: Optional[str] = None,
     delimiter: Optional[str] = None,
-    stats: Optional[StreamingStats] = None
+    stats: Optional[StreamingStats] = None,
+    where: Optional[str] = None
 ) -> Tuple[pd.DataFrame, pd.Series, Optional[StreamingStats]]:
     """Read CSV data with streaming support.
 
     Uses chunked reading to enable early termination when row limit is reached,
-    reducing data transfer for row-limited queries.
+    reducing data transfer for row-limited queries. When ``where`` is given,
+    chunks are filtered as they stream and reading stops as soon as
+    ``num_rows`` matching rows are collected — without materializing the file.
 
     Args:
         stream: File-like object containing CSV data.
@@ -54,6 +57,7 @@ def read_csv_data_streaming(
         columns: Comma-separated list of columns to select.
         delimiter: Custom delimiter character.
         stats: StreamingStats instance for tracking bytes read.
+        where: Optional WHERE expression applied while streaming.
 
     Returns:
         Tuple of (DataFrame, schema Series, StreamingStats).
@@ -76,6 +80,42 @@ def read_csv_data_streaming(
     pd_args = {}
     if delimiter:
         pd_args['delimiter'] = delimiter
+
+    if where:
+        # Filter-as-you-stream: scan chunks, keep only matching rows, stop
+        # once num_rows matches are collected (num_rows == 0 scans the whole
+        # file but memory stays bounded by the matches).
+        from ..filtering import apply_where_filter
+        pd_args['chunksize'] = 1000
+
+        matched_chunks = []
+        first_chunk = None
+        matched = 0
+        scanned = 0
+
+        for chunk in pd.read_csv(tracked, **pd_args):
+            if first_chunk is None:
+                first_chunk = chunk
+            scanned += len(chunk)
+            hits = apply_where_filter(chunk, where)
+            if not hits.empty:
+                if num_rows > 0 and matched + len(hits) > num_rows:
+                    hits = hits.head(num_rows - matched)
+                matched_chunks.append(hits)
+                matched += len(hits)
+            if num_rows > 0 and matched >= num_rows:
+                break
+
+        if matched_chunks:
+            full_df = pd.concat(matched_chunks, ignore_index=True)
+        elif first_chunk is not None:
+            full_df = first_chunk.head(0)  # empty but correctly typed
+        else:
+            full_df = pd.DataFrame()
+
+        stats.where_applied = True
+        stats.rows_scanned = scanned
+        return _apply_column_filter(full_df, col_names, stats)
 
     # Use chunked reading for streaming when we have a row limit
     if num_rows > 0:

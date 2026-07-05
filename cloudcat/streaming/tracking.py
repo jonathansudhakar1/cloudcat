@@ -86,7 +86,8 @@ class BytesTrackingStream:
                 break
             lines.append(line)
             bytes_read += len(line)
-            if hint != -1 and bytes_read >= hint:
+            # Match the stdlib contract: hint <= 0 means "no limit".
+            if hint > 0 and bytes_read >= hint:
                 break
         return lines
 

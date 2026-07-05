@@ -23,11 +23,13 @@ CloudCat is actively developed. Here's what's been accomplished and what's plann
 
 ### Planned Features
 
+- [x] **Multiple WHERE conditions** - AND/OR operators
+- [x] **Configuration file** - `~/.config/cloudcat/config.toml` with named profiles
+- [x] **Local file support** - `file://` URLs and plain paths
+- [x] **Column statistics** - `--stats` per-column profile
+- [x] **Shell completion** - bash/zsh/fish via `--completion`
 - [ ] **Interactive mode** - Pagination with keyboard navigation
-- [ ] **Configuration file** - `.cloudcatrc` for defaults
-- [ ] **Multiple WHERE conditions** - AND/OR operators
 - [ ] **Sampling** - Random row sampling
-- [ ] **Profile support** - Named configuration profiles
 - [ ] **Delta Lake support** - Read Delta tables
 - [ ] **Iceberg support** - Read Iceberg tables
 

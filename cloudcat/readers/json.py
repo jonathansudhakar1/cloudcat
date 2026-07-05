@@ -34,22 +34,41 @@ def read_json_data(
     return df, schema
 
 
+def _filter_after_full_read(df: pd.DataFrame, num_rows: int, where: str, stats: StreamingStats):
+    """Apply a WHERE filter to a fully-read frame (array/document JSON).
+
+    These shapes cannot stream, but marking the filter as applied keeps the
+    caller from filtering twice and lets it report scan counts accurately.
+    """
+    from ..filtering import apply_where_filter
+    stats.rows_scanned = len(df)
+    stats.where_applied = True
+    df = apply_where_filter(df, where)
+    if num_rows > 0 and len(df) > num_rows:
+        df = df.head(num_rows)
+    return df
+
+
 def read_json_data_streaming(
     stream: Union[BinaryIO, io.StringIO, str],
     num_rows: int,
     columns: Optional[str] = None,
-    stats: Optional[StreamingStats] = None
+    stats: Optional[StreamingStats] = None,
+    where: Optional[str] = None
 ) -> Tuple[pd.DataFrame, pd.Series, Optional[StreamingStats]]:
     """Read JSON data with streaming support.
 
-    For JSON Lines format, uses line-by-line reading for true streaming.
-    For JSON arrays, must read the entire content (cannot stream).
+    For JSON Lines format, uses line-by-line reading for true streaming;
+    with ``where``, lines are filtered in batches as they stream and reading
+    stops at ``num_rows`` matches. JSON arrays/documents must be read fully,
+    then filtered.
 
     Args:
         stream: File-like object or string containing JSON data.
         num_rows: Maximum number of rows to read (0 for all).
         columns: Comma-separated list of columns to select.
         stats: StreamingStats instance for tracking bytes read.
+        where: Optional WHERE expression applied while streaming.
 
     Returns:
         Tuple of (DataFrame, schema Series, StreamingStats).
@@ -63,6 +82,10 @@ def read_json_data_streaming(
     col_names = [c.strip() for c in columns.split(',')] if columns else None
     stats.columns_requested = col_names
 
+    # A full-read shape reads everything first; with a filter, the row limit
+    # must not truncate before filtering.
+    full_read_rows = 0 if where else num_rows
+
     # Try streaming approach for JSON Lines first
     if hasattr(stream, 'read'):
         # Peek at first character to detect format
@@ -74,7 +97,7 @@ def read_json_data_streaming(
 
         if first_char == '{':
             # Likely JSON Lines - try line-by-line streaming
-            df, full_schema = _read_json_lines_streaming(stream, first_bytes, num_rows, stats)
+            df, full_schema = _read_json_lines_streaming(stream, first_bytes, num_rows, stats, where)
             return _apply_column_filter(df, full_schema, col_names, stats)
         elif first_char == '[':
             # JSON array - must read fully
@@ -86,7 +109,9 @@ def read_json_data_streaming(
             else:
                 content = first_char + rest
             stats.bytes_read = len(content.encode('utf-8'))
-            df, full_schema = _read_json_array(content, num_rows)
+            df, full_schema = _read_json_array(content, full_read_rows)
+            if where:
+                df = _filter_after_full_read(df, num_rows, where, stats)
             return _apply_column_filter(df, full_schema, col_names, stats)
         else:
             # Empty or unknown format
@@ -97,28 +122,50 @@ def read_json_data_streaming(
             else:
                 content = first_char + rest
             stats.bytes_read = len(content.encode('utf-8'))
-            df, full_schema = _read_json_fallback(content, num_rows)
+            df, full_schema = _read_json_fallback(content, full_read_rows)
+            if where:
+                df = _filter_after_full_read(df, num_rows, where, stats)
             return _apply_column_filter(df, full_schema, col_names, stats)
     else:
         # String content - cannot stream
         stats.is_streaming = False
         content = stream
         stats.bytes_read = len(content.encode('utf-8'))
-        df, full_schema = _read_json_fallback(content, num_rows)
+        df, full_schema = _read_json_fallback(content, full_read_rows)
+        if where:
+            df = _filter_after_full_read(df, num_rows, where, stats)
         return _apply_column_filter(df, full_schema, col_names, stats)
+
+
+def _parse_json_lines(lines: list) -> pd.DataFrame:
+    """Parse a batch of JSONL strings into a DataFrame (lenient fallback)."""
+    content = '\n'.join(lines)
+    try:
+        return pd.read_json(io.StringIO(content), lines=True)
+    except Exception:
+        records = []
+        for line in lines:
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+        return pd.DataFrame(records) if records else pd.DataFrame()
 
 
 def _read_json_lines_streaming(
     stream: BinaryIO,
     first_bytes: bytes,
     num_rows: int,
-    stats: StreamingStats
+    stats: StreamingStats,
+    where: Optional[str] = None
 ) -> Tuple[pd.DataFrame, pd.Series]:
     """Read JSON that begins with '{'.
 
     This handles two distinct shapes that both start with '{':
       * JSON Lines (one complete object per line) — read line-by-line so we can
-        stop early once ``num_rows`` rows are collected (true streaming).
+        stop early once ``num_rows`` rows are collected (true streaming). With
+        ``where``, lines are parsed and filtered in batches and reading stops
+        at ``num_rows`` *matches* instead.
       * A single pretty-printed (multi-line) object — the per-line parse fails,
         so we read the whole document and parse it as one record.
 
@@ -156,49 +203,86 @@ def _read_json_lines_streaming(
         content = first_line + _to_bytes(rest if rest else b'')
         stats.is_streaming = False
         stats.bytes_read = bytes_read
-        df, _ = _read_json_fallback(content.decode('utf-8', errors='replace'), num_rows)
+        df, _ = _read_json_fallback(
+            content.decode('utf-8', errors='replace'), 0 if where else num_rows
+        )
+        if where:
+            df = _filter_after_full_read(df, num_rows, where, stats)
         return df, df.dtypes
 
-    # JSON Lines: collect the first line, then continue streaming.
-    lines = [first_line_str]
-    rows_collected = 1
-    current_line = b''
-
-    if num_rows <= 0 or rows_collected < num_rows:
+    def _iter_lines():
+        """Yield complete, non-empty JSONL strings (starting with line 1)."""
+        nonlocal bytes_read
+        yield first_line_str
+        current = b''
         for line_bytes in stream:
             bytes_read += len(line_bytes)
-            current_line += _to_bytes(line_bytes)
+            current += _to_bytes(line_bytes)
+            if current.endswith(b'\n'):
+                text = current.decode('utf-8', errors='replace').strip()
+                current = b''
+                if text:
+                    yield text
+        if current:
+            text = current.decode('utf-8', errors='replace').strip()
+            if text:
+                yield text
 
-            if current_line.endswith(b'\n'):
-                line_str = current_line.decode('utf-8', errors='replace').strip()
-                if line_str:
-                    lines.append(line_str)
-                    rows_collected += 1
-                current_line = b''
+    if where:
+        # Filter-as-you-stream: parse and filter in batches, stop at
+        # num_rows matches. Memory stays bounded by matches + one batch.
+        from ..filtering import apply_where_filter
+        batch_size = 1000
+        matched_frames = []
+        first_frame = None
+        batch = []
+        matched = 0
+        scanned = 0
 
-                if num_rows > 0 and rows_collected >= num_rows:
+        def _flush(batch_lines):
+            nonlocal matched, first_frame
+            frame = _parse_json_lines(batch_lines)
+            if first_frame is None:
+                first_frame = frame
+            hits = apply_where_filter(frame, where)
+            if not hits.empty:
+                if num_rows > 0 and matched + len(hits) > num_rows:
+                    hits = hits.head(num_rows - matched)
+                matched_frames.append(hits)
+                matched += len(hits)
+
+        for line in _iter_lines():
+            batch.append(line)
+            scanned += 1
+            if len(batch) >= batch_size:
+                _flush(batch)
+                batch = []
+                if num_rows > 0 and matched >= num_rows:
                     break
+        if batch and (num_rows <= 0 or matched < num_rows):
+            _flush(batch)
 
-    # Handle a trailing line without a newline.
-    if current_line:
-        line_str = current_line.decode('utf-8', errors='replace').strip()
-        if line_str and (num_rows <= 0 or rows_collected < num_rows):
-            lines.append(line_str)
+        stats.bytes_read = bytes_read
+        stats.rows_scanned = scanned
+        stats.where_applied = True
+
+        if matched_frames:
+            df = pd.concat(matched_frames, ignore_index=True)
+        elif first_frame is not None:
+            df = first_frame.head(0)
+        else:
+            df = pd.DataFrame()
+        return df, df.dtypes
+
+    # No filter: collect up to num_rows lines and parse once.
+    lines = []
+    for line in _iter_lines():
+        lines.append(line)
+        if num_rows > 0 and len(lines) >= num_rows:
+            break
 
     stats.bytes_read = bytes_read
-
-    content = '\n'.join(lines)
-    try:
-        df = pd.read_json(io.StringIO(content), lines=True)
-    except Exception:
-        records = []
-        for line in lines:
-            try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
-                pass
-        df = pd.DataFrame(records) if records else pd.DataFrame()
-
+    df = _parse_json_lines(lines) if lines else pd.DataFrame()
     return df, df.dtypes
 
 
@@ -221,6 +305,10 @@ def _read_json_array(content: str, num_rows: int) -> Tuple[pd.DataFrame, pd.Seri
 
 def _read_json_fallback(content: str, num_rows: int) -> Tuple[pd.DataFrame, pd.Series]:
     """Fallback JSON reading for mixed formats."""
+    # Strip a UTF-8 BOM (common in files from Windows tooling). str.strip()
+    # does not remove it, and a leading BOM defeats every parse branch below,
+    # silently yielding an empty frame for a perfectly valid file.
+    content = content.lstrip('\ufeff')
     content_stripped = content.strip()
 
     if not content_stripped:

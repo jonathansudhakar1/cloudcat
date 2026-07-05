@@ -96,14 +96,17 @@ pip install --upgrade 'cloudcat[all]'
 ### Requirements
 
 - **Homebrew**: macOS (Apple Silicon only). Intel Mac users should use pip.
-- **pip**: Python 3.7+ (all platforms)
+- **pip**: Python 3.9+ (all platforms)
 - Cloud provider credentials configured (see [Authentication](#authentication))
 
 ## Quick Start
 
 ```bash
-# Preview a CSV file from GCS
-cloudcat -p gcs://my-bucket/data.csv
+# Preview a CSV file from GCS (PATH is positional; -p/--path also works)
+cloudcat gcs://my-bucket/data.csv
+
+# Preview a local file — no cloud credentials needed
+cloudcat ./data.parquet
 
 # Preview a Parquet file from S3
 cloudcat -p s3://my-bucket/analytics/events.parquet
@@ -126,8 +129,8 @@ cloudcat -p s3://my-bucket/spark-output/ -i parquet
 # Read compressed files (auto-detected)
 cloudcat -p gcs://my-bucket/data.csv.gz
 
-# Filter rows with WHERE clause
-cloudcat -p s3://bucket/users.parquet --where "status=active"
+# Filter rows with WHERE (streams; stops at -n matches; AND/OR supported)
+cloudcat s3://bucket/users.parquet --where "status=active AND age>30"
 
 # Skip first 100 rows (pagination)
 cloudcat -p gcs://bucket/data.csv --offset 100 -n 10
@@ -142,6 +145,7 @@ cloudcat -p gcs://bucket/data.csv --offset 100 -n 10
 | Google Cloud Storage | `gcs://` or `gs://` | ✅ Supported |
 | Amazon S3 | `s3://` | ✅ Supported |
 | Azure Data Lake Gen2 | `abfss://` | ✅ Supported |
+| Local files | `file://` or a plain path | ✅ Supported (no credentials needed) |
 
 ### File Format Support
 
@@ -164,8 +168,8 @@ CloudCat uses intelligent streaming to minimize data transfer and egress costs:
 |--------|-------------|---------|-------------------|----------------|
 | Parquet | None/Internal | ✅ | ✅ Range requests | ✅ |
 | Parquet | External (.gz) | ❌ | ❌ | ❌ |
-| ORC | None/Internal | ❌ | ❌ | ❌ |
-| ORC | External (.gz) | ❌ | ❌ | ❌ |
+| ORC | None/Internal | ✅ Stripe-by-stripe | ✅ | ✅ |
+| ORC | External (.gz) | ❌ | ✅ | ✅ |
 | CSV | None | ✅ | ❌ | ✅ |
 | CSV | gzip/zstd/lz4/bz2 | ✅ | ❌ | ✅ |
 | CSV | snappy | ❌ | ❌ | ❌ |
@@ -194,7 +198,7 @@ CloudCat automatically detects and decompresses files based on extension (e.g., 
 
 | Format | Flag | Description |
 |--------|------|-------------|
-| Table | `-o table` | Beautiful ASCII table with colored headers (default) |
+| Table | `-o table` | Rounded table with bold headers and type-aware coloring (default) |
 | JSON | `-o json` | Standard JSON Lines output |
 | Pretty JSON | `-o jsonp` | Syntax-highlighted, indented JSON |
 | CSV | `-o csv` | Comma-separated values |
@@ -251,8 +255,8 @@ cloudcat -p gcs://bucket/events.jsonl
 ### Filtering and Pagination
 
 ```bash
-# Filter rows with WHERE clause
-cloudcat -p s3://bucket/users.parquet --where "status=active"
+# Filter rows with WHERE (streams; stops at -n matches; AND/OR supported)
+cloudcat s3://bucket/users.parquet --where "status=active AND age>30"
 cloudcat -p gcs://bucket/events.json --where "age>30"
 cloudcat -p s3://bucket/logs.csv --where "level=ERROR"
 
@@ -401,7 +405,9 @@ cloudcat -p s3://api-dumps/response.json -o csv > data.csv
 Usage: cloudcat [OPTIONS]
 
 Options:
-  -p, --path TEXT              Cloud storage path (required)
+  PATH                         Positional path: gs://, gcs://, s3://, abfss://,
+                               file:// URL, or a plain local path
+                               (-p/--path remains as a compatible alias)
                                Format: gcs://bucket/path, s3://bucket/path,
                                or abfss://container@account.dfs.core.windows.net/path
 
@@ -422,10 +428,12 @@ Options:
   --offset INTEGER             Skip first N rows
                                [default: 0]
 
-  -w, --where TEXT             Filter rows with SQL-like conditions. Scans the
-                               file and returns up to --num-rows matching rows.
-                               Examples: "status=active", "age>30",
-                               "name contains john", "email endswith @gmail.com"
+  -w, --where TEXT             Filter rows with SQL-like conditions; combine
+                               with AND/OR. Streams the file and stops at
+                               --num-rows matches; Parquet skips row groups
+                               via column statistics.
+                               Examples: "status=active", "age>30 AND age<65",
+                               "level=ERROR or level=FATAL"
 
   -s, --schema TEXT            Schema display: show, dont_show, schema_only
                                [default: show]
@@ -449,6 +457,13 @@ Options:
   --project TEXT               GCP project ID (for GCS access)
 
   --credentials TEXT           Path to GCP service account JSON file
+
+  --stats                      Show per-column statistics (nulls, distinct,
+                               min/max) over the retrieved rows
+
+  --config-profile TEXT        Named profile from ~/.config/cloudcat/config.toml
+
+  --completion [bash|zsh|fish] Print the shell completion script and exit
 
   --az-access-key TEXT         Azure storage account access key
 
@@ -626,6 +641,44 @@ pip install -e ".[all]"
 pytest
 ```
 
+## Use with AI Agents
+
+CloudCat is optimized for AI coding agents: **stdout carries only data**
+(diagnostics go to stderr, color auto-disables when piped), `-o json` emits
+parseable NDJSON, `-y` makes every command non-interactive, filtering streams
+with Parquet row-group pushdown, and local files need no credentials.
+
+The repo ships an [Agent Skill](https://agentskills.io) at
+[`skills/cloudcat/SKILL.md`](skills/cloudcat/SKILL.md) — a compact reference
+that teaches agents the optimal scanning recipes (schema discovery, filtered
+sampling, metadata-fast counts, column profiling) with zero trial-and-error.
+
+Install for **Claude Code**:
+
+```bash
+# All projects (personal skills)
+curl -fsSL --create-dirs -o ~/.claude/skills/cloudcat/SKILL.md \
+  https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
+
+# Single project
+curl -fsSL --create-dirs -o .claude/skills/cloudcat/SKILL.md \
+  https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
+```
+
+The recipes agents learn:
+
+```bash
+cloudcat s3://bucket/events/ -s schema_only -y                 # structure, no data read
+cloudcat s3://bucket/events/ --count -s schema_only -y         # exact rows (Parquet/ORC: metadata-only)
+cloudcat s3://bucket/events/ -w "type=purchase AND amount>250" \
+         -n 5 -o json -s dont_show -y                          # filtered NDJSON sample
+cloudcat s3://bucket/events/ --stats -n 0 -s dont_show -y      # nulls/distinct/min/max per column
+```
+
+Works with any agent framework that can run shell commands and load the
+SKILL.md (or plain markdown) as instructions. See the
+[AI Agents docs](https://cloudcatcli.com/#agents) for details.
+
 ## Roadmap
 
 - [x] Azure Blob Storage support
@@ -636,8 +689,13 @@ pytest
 - [x] Compression support (gzip, zstd, lz4, snappy, bz2)
 - [x] Row offset/pagination (`--offset`)
 - [x] Output to file with `--output-file`
+- [x] Compound WHERE conditions (`AND`/`OR`)
+- [x] Streaming WHERE with Parquet row-group pushdown
+- [x] Local file support (`file://` or plain paths)
+- [x] Configuration file with named profiles
+- [x] Column statistics (`--stats`)
+- [x] Shell completion (bash/zsh/fish)
 - [ ] Interactive mode with pagination
-- [ ] Configuration file support
 
 ## Related Projects
 
