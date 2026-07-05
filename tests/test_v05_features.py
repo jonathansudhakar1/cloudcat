@@ -2,6 +2,7 @@
 compound WHERE, and streaming WHERE with Parquet pushdown."""
 
 import io
+import re
 import pytest
 import pandas as pd
 from click.testing import CliRunner
@@ -247,6 +248,9 @@ class TestWhereOffsetPagination:
         res = runner.invoke(main, [str(f), "--schema", "dont_show", "-o", "csv",
                                    "-w", "tag=hit", "-n", "2", "--offset", "2"])
         assert res.exit_code == 0
-        # matches are n=0,2,4,...; offset 2 skips the first two matches
-        lines = [l for l in res.stdout.splitlines() if l and not l.startswith("n,")]
-        assert lines == ["4,hit", "6,hit"]
+        # matches are n=0,2,4,...; offset 2 skips the first two matches.
+        # Extract data rows by shape rather than position: click < 8.2
+        # (Python 3.9) mixes stderr diagnostics into CliRunner's stdout.
+        data_lines = [l for l in res.stdout.splitlines()
+                      if re.fullmatch(r"\d+,(hit|miss)", l)]
+        assert data_lines == ["4,hit", "6,hit"]
