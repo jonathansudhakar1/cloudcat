@@ -32,6 +32,7 @@ const sections = [
   'directory-operations',
   'output-formats',
   'use-cases',
+  'agents',
   'performance',
   'troubleshooting',
   'contributing',

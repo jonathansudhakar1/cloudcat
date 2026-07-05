@@ -1441,6 +1441,60 @@ cloudcat -p s3://data/report.csv -o csv | awk -F<span class="hljs-string">&#x27;
 <span class="hljs-comment"># Sort and unique</span>
 cloudcat -p gcs://data/users.csv -c country -o csv -n 0 | <span class="hljs-built_in">sort</span> | <span class="hljs-built_in">uniq</span> -c</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
 </section>
+<section id="agents" class="doc-section">
+<h2>AI Agents</h2>
+<p>CloudCat is built to be driven by AI coding agents (Claude Code, Cursor, and
+anything else that runs shell commands) as much as by humans. An agent can
+answer &quot;what&#39;s in this bucket/file?&quot; in a couple of cheap commands instead of
+writing pandas code or downloading files.</p>
+<h3>Why agents work well with CloudCat</h3>
+<ul>
+<li><strong>stdout is data only</strong> — schema, progress, and warnings go to stderr, and
+color auto-disables when piped, so output parses cleanly</li>
+<li><strong>NDJSON output</strong> (<code>-o json</code>) — one JSON object per line, trivially parseable</li>
+<li><strong>Non-interactive</strong> — <code>-y</code> skips every confirmation prompt</li>
+<li><strong>Cheap by default</strong> — <code>--where</code> streams and stops at <code>-n</code> matches, Parquet
+row groups are skipped via min/max statistics, and <code>--count</code> on
+Parquet/ORC reads only footer metadata</li>
+<li><strong>No credentials needed for local files</strong> — agents can test recipes on
+disk before touching cloud data</li>
+<li><strong>Exit codes</strong> — <code>0</code> on success, non-zero with a stderr message on failure</li>
+</ul>
+<h3>The CloudCat skill</h3>
+<p>The repository ships an <a href="https://agentskills.io">Agent Skill</a> —
+<a href="https://github.com/jonathansudhakar1/cloudcat/blob/main/skills/cloudcat/SKILL.md"><code>skills/cloudcat/SKILL.md</code></a>
+— a compact reference that teaches an agent the optimal scanning recipes
+(schema discovery, filtered sampling, counts, column profiling) without a
+<code>--help</code> roundtrip or trial-and-error.</p>
+<p>Install it for <strong>Claude Code</strong>:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># For every project (personal skills directory)</span>
+<span class="hljs-built_in">mkdir</span> -p ~/.claude/skills
+curl -fsSL --create-dirs -o ~/.claude/skills/cloudcat/SKILL.md \
+  https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
+
+<span class="hljs-comment"># Or for a single project</span>
+<span class="hljs-built_in">mkdir</span> -p .claude/skills
+curl -fsSL --create-dirs -o .claude/skills/cloudcat/SKILL.md \
+  https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>Any other agent framework that supports the SKILL.md format (or plain
+markdown instructions) can use the same file.</p>
+<h3>What the skill teaches</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Structure, no data read</span>
+cloudcat s3://bucket/events/ -s schema_only -y
+
+<span class="hljs-comment"># Exact row count — metadata-only for Parquet/ORC</span>
+cloudcat s3://bucket/events/ --count -s schema_only -y
+
+<span class="hljs-comment"># Filtered sample as NDJSON (streams; stops at 5 matches)</span>
+cloudcat s3://bucket/events/ -w <span class="hljs-string">&quot;type=purchase AND amount&gt;250&quot;</span> -n 5 -o json -s dont_show -y
+
+<span class="hljs-comment"># Per-column nulls / distinct / min / max</span>
+cloudcat s3://bucket/events/ --stats -n 0 -s dont_show -y</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>In verification runs, an agent with the skill answered a four-part data
+exploration task with zero failed commands and no <code>--help</code> call, using
+NDJSON output throughout — the same task without the skill cost an extra
+discovery roundtrip, a failed command (missing <code>-y</code>), and human-oriented
+output formats.</p>
+
+</section>
 <section id="performance" class="doc-section">
 <h2>Performance Tips</h2>
 <p>Optimize CloudCat for faster performance and lower data transfer costs.</p>

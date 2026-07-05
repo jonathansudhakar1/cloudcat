@@ -641,6 +641,44 @@ pip install -e ".[all]"
 pytest
 ```
 
+## Use with AI Agents
+
+CloudCat is optimized for AI coding agents: **stdout carries only data**
+(diagnostics go to stderr, color auto-disables when piped), `-o json` emits
+parseable NDJSON, `-y` makes every command non-interactive, filtering streams
+with Parquet row-group pushdown, and local files need no credentials.
+
+The repo ships an [Agent Skill](https://agentskills.io) at
+[`skills/cloudcat/SKILL.md`](skills/cloudcat/SKILL.md) — a compact reference
+that teaches agents the optimal scanning recipes (schema discovery, filtered
+sampling, metadata-fast counts, column profiling) with zero trial-and-error.
+
+Install for **Claude Code**:
+
+```bash
+# All projects (personal skills)
+curl -fsSL --create-dirs -o ~/.claude/skills/cloudcat/SKILL.md \
+  https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
+
+# Single project
+curl -fsSL --create-dirs -o .claude/skills/cloudcat/SKILL.md \
+  https://raw.githubusercontent.com/jonathansudhakar1/cloudcat/main/skills/cloudcat/SKILL.md
+```
+
+The recipes agents learn:
+
+```bash
+cloudcat s3://bucket/events/ -s schema_only -y                 # structure, no data read
+cloudcat s3://bucket/events/ --count -s schema_only -y         # exact rows (Parquet/ORC: metadata-only)
+cloudcat s3://bucket/events/ -w "type=purchase AND amount>250" \
+         -n 5 -o json -s dont_show -y                          # filtered NDJSON sample
+cloudcat s3://bucket/events/ --stats -n 0 -s dont_show -y      # nulls/distinct/min/max per column
+```
+
+Works with any agent framework that can run shell commands and load the
+SKILL.md (or plain markdown) as instructions. See the
+[AI Agents docs](https://cloudcatcli.com/#agents) for details.
+
 ## Roadmap
 
 - [x] Azure Blob Storage support
