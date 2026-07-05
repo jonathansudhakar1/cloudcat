@@ -17,7 +17,22 @@ CloudCat supports SQL-like filtering with the `--where` option. Filter your data
 | `startswith` | `email startswith admin` | String prefix match |
 | `endswith` | `file endswith .csv` | String suffix match |
 
-> **One condition at a time.** Compound clauses with `AND`/`OR` are not supported and are rejected with a clear error. CloudCat **scans the file** to apply `--where` and returns up to `--num-rows` matching rows.
+> **Combine conditions with `AND`/`OR`** (AND binds tighter; parentheses are not supported). Quote values containing the words and/or: `title='Alice and Bob'`.
+>
+> CloudCat **streams** the file while filtering and stops as soon as `--num-rows` matches are found. For Parquet, row groups whose min/max statistics cannot match are skipped without being downloaded.
+
+### Compound Conditions
+
+```bash
+# AND — both must hold
+cloudcat s3://bucket/users.parquet --where "status=active AND age>30"
+
+# OR — either may hold
+cloudcat gcs://bucket/logs.csv --where "level=ERROR or level=FATAL"
+
+# AND binds tighter than OR:  a  OR  (b AND c)
+cloudcat s3://bucket/events.json --where "type=crash or type=error AND fatal=true"
+```
 
 ### Usage Examples
 
@@ -91,5 +106,5 @@ cloudcat -p gcs://bucket/users.parquet --where "country=US" -o csv -n 0 > us_use
 - String values don't need quotes in the WHERE clause
 - Comparisons are type-aware (numeric columns compare numerically)
 - The `contains`, `not contains`, `startswith`, and `endswith` operators are case-insensitive
-- `--where` scans the file to find matches, so it reads more than a plain `--num-rows` preview on large files
-- Only a single condition is supported; `AND`/`OR` raises an error rather than mis-parsing
+- `--where` streams and stops at `--num-rows` matches; with `-n 0` it scans the whole file
+- Combine conditions with `AND`/`OR` (AND binds tighter); quote values containing those words

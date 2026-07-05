@@ -12,7 +12,7 @@ cloudcat [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `-p, --path TEXT` | Cloud storage path (required). Formats: `gcs://bucket/path`, `s3://bucket/path`, or `abfss://container@account.dfs.core.windows.net/path` |
+| `PATH` (positional) | `gs://`, `gcs://`, `s3://`, `abfss://`, `file://` URL, or a plain local path. `-p/--path` remains as a compatible alias |
 
 ### Output & Format Options
 
@@ -34,7 +34,7 @@ cloudcat [OPTIONS]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-w, --where TEXT` | none | Filter rows with SQL-like conditions (scans the file, returns up to `--num-rows` matches) |
+| `-w, --where TEXT` | none | Filter rows with SQL-like conditions; combine with `AND`/`OR`. Streams and stops at `--num-rows` matches; Parquet skips row groups via statistics |
 | `-s, --schema TEXT` | `show` | Schema display: `show`, `dont_show`, `schema_only` |
 | `--count` | false | Show total record count (scans entire file) |
 
@@ -59,11 +59,14 @@ cloudcat [OPTIONS]
 | `--project TEXT` | GCP project ID (for GCS access) |
 | `--credentials TEXT` | Path to GCP service account JSON file |
 | `--az-access-key TEXT` | Azure storage account access key |
+| `--config-profile TEXT` | Named profile from `~/.config/cloudcat/config.toml` |
 
 ### General Options
 
 | Option | Description |
 |--------|-------------|
+| `--stats` | Show per-column statistics (nulls, distinct, min/max) over the retrieved rows |
+| `--completion [bash\|zsh\|fish]` | Print the shell completion script and exit |
 | `--no-color` | Disable colored output (also honors the `NO_COLOR` env var). Color is auto-disabled when output is piped. |
 | `-y, --yes` | Skip confirmation prompts (for scripting) |
 | `--help` | Show help message and exit |
