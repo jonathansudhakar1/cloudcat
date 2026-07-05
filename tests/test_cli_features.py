@@ -36,10 +36,24 @@ class TestWhereScansFullFile:
         assert "John" in res.stdout and "Bob" in res.stdout
         assert "Jane" not in res.stdout  # inactive, filtered out
 
-    def test_compound_where_errors_clearly(self):
+    def test_compound_where_and(self):
+        res = _patched(main, ["--path", "s3://b/f.csv", "--where", "status=active and age>30",
+                              "--schema", "dont_show", "--output-format", "csv"])
+        assert res.exit_code == 0
+        assert "Bob" in res.stdout and "Amy" in res.stdout
+        assert "John" not in res.stdout  # active but age 25
+
+    def test_compound_where_or(self):
+        res = _patched(main, ["--path", "s3://b/f.csv", "--where", "age<26 or age>39",
+                              "--schema", "dont_show", "--output-format", "csv"])
+        assert res.exit_code == 0
+        assert "John" in res.stdout and "Amy" in res.stdout
+        assert "Jane" not in res.stdout
+
+    def test_compound_where_unknown_column_errors(self):
         res = _patched(main, ["--path", "s3://b/f.csv", "--where", "a=1 and b=2"])
         assert res.exit_code == 1
-        assert "Compound conditions" in res.output
+        assert "not found" in res.output
 
 
 class TestOutputFile:

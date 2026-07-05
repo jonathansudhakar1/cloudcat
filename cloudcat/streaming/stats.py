@@ -39,6 +39,10 @@ class StreamingStats:
         rows_requested: Number of rows requested.
         is_streaming: Whether true streaming was used.
         used_native_fs: Whether PyArrow native filesystem was used.
+        where_applied: Whether the reader filtered rows during the read
+            (streaming WHERE); the caller must not re-filter.
+        rows_scanned: Rows examined by the reader while filtering.
+        row_groups_skipped: Parquet row groups pruned via min/max statistics.
     """
     file_size: int = 0
     bytes_read: int = 0
@@ -48,6 +52,9 @@ class StreamingStats:
     rows_requested: Optional[int] = None
     is_streaming: bool = True
     used_native_fs: bool = False
+    where_applied: bool = False
+    rows_scanned: Optional[int] = None
+    row_groups_skipped: int = 0
 
     @property
     def efficiency_percent(self) -> float:

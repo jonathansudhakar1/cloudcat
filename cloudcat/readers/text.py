@@ -36,18 +36,23 @@ def read_text_data_streaming(
     stream: Union[BinaryIO, str],
     num_rows: int,
     columns: Optional[str] = None,
-    stats: Optional[StreamingStats] = None
+    stats: Optional[StreamingStats] = None,
+    where: Optional[str] = None
 ) -> Tuple[pd.DataFrame, pd.Series, Optional[StreamingStats]]:
     """Read plain text data with streaming support.
 
     Uses line-by-line reading to enable early termination when row limit
-    is reached, reducing data transfer for row-limited queries.
+    is reached, reducing data transfer for row-limited queries. With
+    ``where``, lines are filtered in batches as they stream (line_number
+    reflects the position in the file, not the filtered output) and reading
+    stops at ``num_rows`` matches.
 
     Args:
         stream: File-like object or file path containing text data.
         num_rows: Maximum number of rows to read (0 for all).
         columns: Comma-separated list of columns to select.
         stats: StreamingStats instance for tracking bytes read.
+        where: Optional WHERE expression applied while streaming.
 
     Returns:
         Tuple of (DataFrame, schema Series, StreamingStats).
@@ -60,6 +65,9 @@ def read_text_data_streaming(
 
     col_names = [c.strip() for c in columns.split(',')] if columns else None
     stats.columns_requested = col_names
+
+    if where and hasattr(stream, 'read'):
+        return _read_text_filtered(stream, num_rows, col_names, stats, where)
 
     lines = []
     bytes_read = 0
@@ -122,3 +130,78 @@ def read_text_data_streaming(
         df = full_df
 
     return df, full_schema, stats
+
+
+def _read_text_filtered(
+    stream: BinaryIO,
+    num_rows: int,
+    col_names: Optional[list],
+    stats: StreamingStats,
+    where: str
+) -> Tuple[pd.DataFrame, pd.Series, StreamingStats]:
+    """Filter-as-you-stream over text lines, stopping at num_rows matches.
+
+    line_number reflects the position in the file, so filtered output stays
+    traceable back to the source (like grep -n).
+    """
+    from ..filtering import apply_where_filter
+
+    stats.is_streaming = True
+    batch_size = 1000
+    matched_frames = []
+    batch_lines = []
+    batch_start = 1
+    matched = 0
+    scanned = 0
+    bytes_read = 0
+
+    def _flush():
+        nonlocal matched, batch_start
+        frame = pd.DataFrame({
+            'line': batch_lines,
+            'line_number': range(batch_start, batch_start + len(batch_lines)),
+        })
+        batch_start += len(batch_lines)
+        hits = apply_where_filter(frame, where)
+        if not hits.empty:
+            if num_rows > 0 and matched + len(hits) > num_rows:
+                hits = hits.head(num_rows - matched)
+            matched_frames.append(hits)
+            matched += len(hits)
+
+    for line_bytes in stream:
+        if isinstance(line_bytes, bytes):
+            bytes_read += len(line_bytes)
+            line = line_bytes.decode('utf-8', errors='replace').rstrip('\n\r')
+        else:
+            bytes_read += len(line_bytes.encode('utf-8'))
+            line = line_bytes.rstrip('\n\r')
+        batch_lines.append(line)
+        scanned += 1
+
+        if len(batch_lines) >= batch_size:
+            _flush()
+            batch_lines = []
+            if num_rows > 0 and matched >= num_rows:
+                break
+    if batch_lines and (num_rows <= 0 or matched < num_rows):
+        _flush()
+
+    stats.bytes_read = bytes_read
+    stats.rows_scanned = scanned
+    stats.where_applied = True
+
+    if matched_frames:
+        full_df = pd.concat(matched_frames, ignore_index=True)
+    else:
+        full_df = pd.DataFrame({'line': [], 'line_number': []})
+
+    full_schema = full_df.dtypes
+    if col_names:
+        valid_cols = [c for c in col_names if c in full_df.columns]
+        if len(valid_cols) != len(col_names):
+            missing = set(col_names) - set(valid_cols)
+            click.echo(Fore.YELLOW + f"Warning: Columns not found: {', '.join(missing)}" + Style.RESET_ALL)
+        full_df = full_df[valid_cols]
+
+    return full_df, full_schema, stats

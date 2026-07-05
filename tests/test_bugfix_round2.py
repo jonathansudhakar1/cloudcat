@@ -121,9 +121,11 @@ class TestWhereParsing:
     def test_equals_value_containing_word_operator(self):
         assert parse_where_clause("note=this contains that") == ("note", "=", "this contains that")
 
-    def test_unquoted_compound_still_rejected(self):
+    def test_single_parser_rejects_raw_compound(self):
+        # The single-condition parser never mis-parses compound input;
+        # compound expressions go through parse_where_expression instead.
         for clause in ["a=1 and b=2", "x>3 or y<5", "A=1 AND B=2"]:
-            with pytest.raises(ValueError, match="Compound conditions"):
+            with pytest.raises(ValueError):
                 parse_where_clause(clause)
 
     def test_word_operator_still_parses(self):
@@ -196,13 +198,15 @@ class TestCliInteractions:
         assert "Jane" in res.stdout and "Bob" in res.stdout
         assert "John" not in res.stdout  # age 25 filtered out
 
-    def test_filtered_message_reports_true_match_count(self):
+    def test_filtered_message_is_honest_about_matches(self):
         res = _invoke(["--path", "s3://b/f.csv", "--where", "status=active",
                        "--num-rows", "1", "--schema", "dont_show", "--output-format", "csv"])
         assert res.exit_code == 0
-        # 4 of 6 rows match; only 1 shown
-        assert "Filtered: 4 of 6 rows match" in res.output
-        assert "showing 1" in res.output
+        # Streaming WHERE stops at the first match; the message reports the
+        # matches returned and the rows scanned, never a fabricated total.
+        assert "Filtered: 1 matching rows" in res.output
+        assert "scanned" in res.output
+        assert "John" in res.stdout  # first matching row
 
     def test_schema_only_with_output_file(self, tmp_path):
         out = tmp_path / "schema.txt"

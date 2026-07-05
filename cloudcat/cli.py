@@ -25,7 +25,7 @@ from .compression import (
     get_streaming_decompressor,
     supports_streaming_decompression,
 )
-from .filtering import parse_where_clause, apply_where_filter
+from .filtering import parse_where_clause, apply_where_filter, where_columns
 from .formatters import colorize_json, format_table_with_colored_header
 from .progress import start_progress, update_progress, stop_progress
 from .storage import (
@@ -450,13 +450,18 @@ def read_data_streaming(
     num_rows: int,
     columns: Optional[str] = None,
     delimiter: Optional[str] = None,
-    offset: int = 0
+    offset: int = 0,
+    where: Optional[str] = None
 ) -> Tuple[pd.DataFrame, pd.Series, StreamingStats]:
     """Read data from cloud storage with streaming support.
 
     Uses PyArrow native filesystems for columnar formats (Parquet, ORC)
     to enable true column projection with range requests. Uses streaming
     decompression and chunked reading for row-based formats.
+
+    With ``where``, readers filter while streaming and stop at ``num_rows``
+    matches instead of materializing the file; ``offset`` then skips
+    *matching* rows (pagination over the filtered result).
 
     Args:
         service: Cloud service identifier.
@@ -467,6 +472,7 @@ def read_data_streaming(
         columns: Columns to select.
         delimiter: CSV delimiter.
         offset: Rows to skip.
+        where: Optional WHERE expression applied while streaming.
 
     Returns:
         Tuple of (DataFrame, schema, StreamingStats).
@@ -503,7 +509,8 @@ def read_data_streaming(
                 azure_account=cloud_config.azure_account,
                 azure_access_key=cloud_config.azure_access_key
             )
-            pyarrow_path = f"{bucket}/{object_path}"
+            # Local paths are already absolute; cloud paths are bucket/key.
+            pyarrow_path = f"{bucket}/{object_path}" if bucket else object_path
 
             if input_format == 'parquet':
                 df, schema, stats = read_parquet_data_streaming(
@@ -511,7 +518,8 @@ def read_data_streaming(
                     columns=columns,
                     stats=stats,
                     pyarrow_fs=pyarrow_fs,
-                    pyarrow_path=pyarrow_path
+                    pyarrow_path=pyarrow_path,
+                    where=where
                 )
             else:  # orc
                 df, schema, stats = read_orc_data_streaming(
@@ -519,7 +527,8 @@ def read_data_streaming(
                     columns=columns,
                     stats=stats,
                     pyarrow_fs=pyarrow_fs,
-                    pyarrow_path=pyarrow_path
+                    pyarrow_path=pyarrow_path,
+                    where=where
                 )
 
             # Apply offset
@@ -552,17 +561,17 @@ def read_data_streaming(
 
     # Read based on format using streaming readers
     if input_format == 'csv':
-        df, schema, stats = read_csv_data_streaming(stream, rows_to_read, columns, delimiter, stats)
+        df, schema, stats = read_csv_data_streaming(stream, rows_to_read, columns, delimiter, stats, where=where)
     elif input_format == 'json':
-        df, schema, stats = read_json_data_streaming(stream, rows_to_read, columns, stats)
+        df, schema, stats = read_json_data_streaming(stream, rows_to_read, columns, stats, where=where)
     elif input_format == 'parquet':
-        df, schema, stats = read_parquet_data_streaming(stream=stream, num_rows=rows_to_read, columns=columns, stats=stats)
+        df, schema, stats = read_parquet_data_streaming(stream=stream, num_rows=rows_to_read, columns=columns, stats=stats, where=where)
     elif input_format == 'avro':
-        df, schema, stats = read_avro_data_streaming(stream, rows_to_read, columns, stats)
+        df, schema, stats = read_avro_data_streaming(stream, rows_to_read, columns, stats, where=where)
     elif input_format == 'orc':
-        df, schema, stats = read_orc_data_streaming(stream=stream, num_rows=rows_to_read, columns=columns, stats=stats)
+        df, schema, stats = read_orc_data_streaming(stream=stream, num_rows=rows_to_read, columns=columns, stats=stats, where=where)
     elif input_format == 'text':
-        df, schema, stats = read_text_data_streaming(stream, rows_to_read, columns, stats)
+        df, schema, stats = read_text_data_streaming(stream, rows_to_read, columns, stats, where=where)
     else:
         raise ValueError(f"Unsupported format: {input_format}")
 
@@ -600,6 +609,29 @@ def get_record_count(
     """
     # Detect compression from file path
     compression = detect_compression(object_path)
+
+    # Columnar formats keep the row count in their footer metadata. Over a
+    # native PyArrow filesystem that is a few-KB range request — never
+    # download the whole file just to read a number.
+    if input_format in ('parquet', 'orc') and compression is None and supports_pyarrow_fs():
+        try:
+            pyarrow_fs, _ = get_pyarrow_filesystem(
+                service,
+                aws_profile=cloud_config.aws_profile,
+                gcp_project=cloud_config.gcp_project,
+                gcp_credentials=cloud_config.gcp_credentials,
+                azure_account=cloud_config.azure_account,
+                azure_access_key=cloud_config.azure_access_key
+            )
+            pyarrow_path = f"{bucket}/{object_path}" if bucket else object_path
+            if input_format == 'parquet' and HAS_PARQUET:
+                return pq.ParquetFile(pyarrow_path, filesystem=pyarrow_fs).metadata.num_rows
+            if input_format == 'orc' and HAS_ORC:
+                import pyarrow.orc as orc
+                with pyarrow_fs.open_input_file(pyarrow_path) as f:
+                    return orc.ORCFile(f).nrows
+        except Exception:
+            pass  # fall back to the full-download path below
 
     if input_format == 'parquet' and HAS_PARQUET:
         # For Parquet, we can get count from metadata
@@ -779,6 +811,61 @@ def _format_count(value) -> str:
     return f"{value:,}" if isinstance(value, int) else str(value)
 
 
+def _apply_user_config(ctx, param, value):
+    """Eager callback: merge config-file defaults into the Click default map.
+
+    Runs before other options are resolved, so explicit CLI flags still win
+    over everything from the file.
+    """
+    if ctx.resilient_parsing:
+        return value
+    from .user_config import load_user_config
+    try:
+        defaults = load_user_config(value)
+    except ValueError as e:
+        raise click.UsageError(str(e))
+    if defaults:
+        ctx.default_map = {**defaults, **(ctx.default_map or {})}
+    return value
+
+
+def _print_completion(ctx, param, value):
+    """Eager callback: print the shell-completion script and exit."""
+    if not value or ctx.resilient_parsing:
+        return
+    from click.shell_completion import get_completion_class
+    comp_cls = get_completion_class(value)
+    comp = comp_cls(ctx.command, {}, 'cloudcat', '_CLOUDCAT_COMPLETE')
+    click.echo(comp.source())
+    ctx.exit()
+
+
+def _column_stats(df: pd.DataFrame) -> pd.DataFrame:
+    """Profile each column of a frame: type, nulls, distinct values, range."""
+    rows = []
+    for position, col in enumerate(df.columns):
+        series = df.iloc[:, position]
+        entry = {
+            'column': str(col),
+            'dtype': str(series.dtype),
+            'non_null': int(series.notna().sum()),
+            'nulls': int(series.isna().sum()),
+        }
+        try:
+            entry['distinct'] = int(series.nunique())
+        except TypeError:  # unhashable values (lists/dicts from JSON)
+            entry['distinct'] = None
+        try:
+            non_null = series.dropna()
+            entry['min'] = non_null.min() if len(non_null) else None
+            entry['max'] = non_null.max() if len(non_null) else None
+        except (TypeError, ValueError):  # mixed types don't order
+            entry['min'] = None
+            entry['max'] = None
+        rows.append(entry)
+    return pd.DataFrame(rows)
+
+
 def _render_data(df: pd.DataFrame, output_format: str) -> str:
     """Render a DataFrame to the requested output format string."""
     if output_format == 'table':
@@ -794,8 +881,9 @@ def _render_data(df: pd.DataFrame, output_format: str) -> str:
 
 @click.command()
 @click.version_option(version=__version__, prog_name='cloudcat')
-@click.option('--path', '-p', required=True,
-              help='Path to the file or directory (gs://, gcs://, s3://, or abfss://)')
+@click.argument('path_arg', required=False, metavar='[PATH]')
+@click.option('--path', '-p', 'path_opt',
+              help='Path to the file or directory (deprecated alias for the PATH argument)')
 @click.option('--output-format', '-o', type=click.Choice(['json', 'jsonp', 'csv', 'table']), default='table',
               help='Output format (default: table)')
 @click.option('--output-file', '-O', type=click.Path(dir_okay=False, writable=True),
@@ -816,15 +904,25 @@ def _render_data(df: pd.DataFrame, output_format: str) -> str:
 @click.option('--max-size-mb', default=25, type=click.IntRange(min=0),
               help='Maximum size in MB to read when reading multiple files (default: 25)')
 @click.option('--delimiter', '-d', help='Delimiter to use for CSV files (use "\\t" for tab)')
+@click.option('--stats', 'show_stats', is_flag=True,
+              help='Show per-column statistics (nulls, distinct, min/max) over the retrieved rows instead of the data')
 @click.option('--no-color', is_flag=True, help='Disable colored output (also honors the NO_COLOR env var)')
+@click.option('--config-profile', is_eager=True, expose_value=False, callback=_apply_user_config,
+              help='Named profile from the config file (~/.config/cloudcat/config.toml)')
+@click.option('--completion', type=click.Choice(['bash', 'zsh', 'fish']), is_eager=True,
+              expose_value=False, callback=_print_completion,
+              help='Print the shell completion script and exit (e.g. eval "$(cloudcat --completion zsh)")')
 @click.option('--profile', help='AWS profile name (for S3 access)')
 @click.option('--project', help='GCP project ID (for GCS access)')
 @click.option('--credentials', help='Path to GCP service account JSON file')
 @click.option('--az-access-key', help='Azure storage account access key')
 @click.option('--yes', '-y', is_flag=True, help='Skip confirmation prompts (for scripting)')
-def main(path, output_format, output_file, input_format, columns, num_rows, offset, where, schema, count,
-         multi_file_mode, max_size_mb, delimiter, no_color, profile, project, credentials, az_access_key, yes):
-    """Display data from files in Google Cloud Storage, AWS S3, or Azure Data Lake Storage Gen2.
+def main(path_arg, path_opt, output_format, output_file, input_format, columns, num_rows, offset, where, schema, count,
+         multi_file_mode, max_size_mb, delimiter, show_stats, no_color, profile, project, credentials, az_access_key, yes):
+    """Display data from cloud storage (GCS, S3, Azure Data Lake) or local files.
+
+    PATH is a gs://, gcs://, s3://, abfss://, or file:// URL — or a plain
+    local filesystem path.
 
     Supported formats: CSV, JSON, Parquet, Avro, ORC, and plain text.
     Supports compressed files: .gz, .zst, .lz4, .snappy, .bz2
@@ -832,99 +930,85 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
     Example usage:
 
     \b
-    # Read from GCS
-    cloudcat --path gcs://my-bucket/data.csv --output-format table
+    # Read from GCS, S3, Azure, or a local file
+    cloudcat gcs://my-bucket/data.csv
+    cloudcat s3://my-bucket/data.parquet --columns id,name,value
+    cloudcat abfss://container@account.dfs.core.windows.net/data.json -o jsonp
+    cloudcat ./local-data.parquet
 
     \b
-    # Read from S3 with column selection
-    cloudcat --path s3://my-bucket/data.parquet --columns id,name,value
+    # Read from a directory (Spark/Hive output; multiple files up to 25MB)
+    cloudcat gcs://my-bucket/sparkoutput/ --input-format parquet
+    cloudcat s3://my-bucket/daily-data/ --multi-file-mode all --max-size-mb 25
 
     \b
-    # Read from Azure Data Lake Storage Gen2
-    cloudcat --path abfss://container@account.dfs.core.windows.net/data.json --output-format jsonp
+    # Filter with WHERE — streams and stops at --num-rows matches;
+    # Parquet skips non-matching row groups via column statistics
+    cloudcat s3://bucket/users.parquet --where "status=active"
+    cloudcat s3://bucket/events.json --where "age>30 AND status=active"
+    cloudcat gcs://bucket/logs.csv --where "level=ERROR or level=FATAL"
 
     \b
-    # Read Avro files from Kafka exports
-    cloudcat --path s3://my-bucket/kafka-export.avro
-
-    \b
-    # Read ORC files from Hive
-    cloudcat --path gcs://my-bucket/hive-table.orc
-
-    \b
-    # Read log files as plain text
-    cloudcat --path abfss://logs@account.dfs.core.windows.net/app.log --input-format text
-
-    \b
-    # Read from a directory (reads first non-empty data file)
-    cloudcat --path gcs://my-bucket/sparkoutput/ --input-format parquet
-
-    \b
-    # Read from multiple files in a directory (up to 25MB)
-    cloudcat --path s3://my-bucket/daily-data/ --multi-file-mode all --max-size-mb 25
-
-    \b
-    # Read a tab-delimited file
-    cloudcat --path gcs://my-bucket/data.csv --delimiter "\\t"
-
-    \b
-    # Skip first 100 rows and show next 10
-    cloudcat --path gcs://my-bucket/data.csv --offset 100 --num-rows 10
-
-    \b
-    # Filter rows with WHERE clause (scans the file for matching rows)
-    cloudcat --path s3://bucket/users.parquet --where "status=active"
-    cloudcat --path s3://bucket/events.json --where "age>30"
-    cloudcat --path gcs://bucket/logs.csv --where "message contains error"
+    # Column statistics (nulls, distinct, min/max) instead of rows
+    cloudcat s3://bucket/data.parquet --stats -n 0
 
     \b
     # Export rows to a local file (clean data, no diagnostics)
-    cloudcat --path s3://bucket/data.parquet --output-format csv --output-file out.csv
+    cloudcat s3://bucket/data.parquet --output-format csv --output-file out.csv
 
     \b
-    # Read compressed files (auto-detected)
-    cloudcat --path gcs://my-bucket/data.csv.gz
-    cloudcat --path s3://my-bucket/logs.json.zst
+    # Compressed files (auto-detected), tab delimiters, pagination
+    cloudcat gcs://my-bucket/data.csv.gz
+    cloudcat gcs://my-bucket/data.csv --delimiter "\\t" --offset 100 -n 10
 
     \b
-    # Use AWS profile for S3 access
-    cloudcat --path s3://my-bucket/data.csv --profile production
+    # Cloud credentials
+    cloudcat s3://my-bucket/data.csv --profile production
+    cloudcat gcs://my-bucket/data.csv --project my-gcp-project --credentials sa.json
+    cloudcat abfss://c@account.dfs.core.windows.net/d.csv --az-access-key KEY
 
     \b
-    # Use specific GCP project
-    cloudcat --path gcs://my-bucket/data.csv --project my-gcp-project
+    # Persistent defaults + named profiles (~/.config/cloudcat/config.toml)
+    cloudcat s3://bucket/data.csv --config-profile prod
 
     \b
-    # Use GCP service account credentials
-    cloudcat --path gcs://bucket/data.csv --credentials /path/to/service-account.json
-
-    \b
-    # Use Azure storage account access key
-    cloudcat --path abfss://container@account.dfs.core.windows.net/data.csv --az-access-key YOUR_KEY
+    # Shell completion
+    eval "$(cloudcat --completion zsh)"
     """
+    # Resolve the positional PATH and the legacy --path alias.
+    if path_arg and path_opt and path_arg != path_opt:
+        click.echo(Fore.RED + "Error: PATH given both as an argument and via --path; use one." + Style.RESET_ALL, err=True)
+        sys.exit(2)
+    path = path_arg or path_opt
+    if not path:
+        click.echo(Fore.RED + "Error: Missing PATH. Usage: cloudcat [OPTIONS] PATH" + Style.RESET_ALL, err=True)
+        sys.exit(2)
+
     # Enable color only for an interactive stdout; writing to a file is never
     # colored. This must run before any colored output is produced.
     _configure_color(no_color or bool(output_file))
 
-    # When filtering, the display window (num_rows) must not limit the read
-    # window, or we would filter only the first num_rows and miss matches.
-    # Reading all rows lets us return up to num_rows *matching* rows.
-    read_rows = 0 if where else num_rows
+    # Single-file reads now filter WHILE streaming (stopping at num_rows
+    # matches), so they take num_rows directly. The multi-file path still
+    # reads its (size-capped) selection fully and filters afterwards, so it
+    # must not limit the raw read when filtering.
+    multi_read_rows = 0 if where else num_rows
 
-    # When filtering, read the filter column even if it is not displayed:
+    # When filtering, read the filter columns even if they are not displayed:
     # projection happens inside the readers, and filtering on a projected-away
     # column would otherwise fail with "Column not found". The display
     # projection is re-applied after the filter.
     read_columns = columns
     if where and columns:
         try:
-            filter_column = parse_where_clause(where)[0]
+            filter_cols = where_columns(where)
         except ValueError as e:
             click.echo(Fore.RED + f"Error: {str(e)}" + Style.RESET_ALL, err=True)
             sys.exit(1)
         requested_cols = [c.strip() for c in columns.split(',')]
-        if filter_column not in requested_cols:
-            read_columns = ','.join(requested_cols + [filter_column])
+        extra = [c for c in filter_cols if c not in requested_cols]
+        if extra:
+            read_columns = ','.join(requested_cols + extra)
 
     try:
         # Configure cloud credentials from CLI options. Reset first so options
@@ -977,7 +1061,7 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
                 start_progress(f"Reading {file_name}...")
 
                 # Read the data from the single file with streaming
-                df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, read_rows, read_columns, delimiter, offset)
+                df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, num_rows, read_columns, delimiter, offset, where=where)
                 total_record_count = None  # Will be computed later if needed
 
                 # Stop progress
@@ -1006,7 +1090,7 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
 
                     # Use streaming read for all formats
                     df, full_schema, streaming_stats = read_data_streaming(
-                        service, bucket, single_file_path, input_format, read_rows, read_columns, delimiter, offset
+                        service, bucket, single_file_path, input_format, num_rows, read_columns, delimiter, offset, where=where
                     )
                     stop_progress()
 
@@ -1017,7 +1101,7 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
                     # Read data from multiple files with progress updates
                     update_progress(f"Reading {len(file_list)} files...")
                     df, full_schema, rows_in_files = read_data_from_multiple_files(
-                        service, bucket, file_list, input_format, read_rows, read_columns, delimiter, offset, quiet=True
+                        service, bucket, file_list, input_format, multi_read_rows, read_columns, delimiter, offset, quiet=True
                     )
 
                     # Stop progress before any output
@@ -1069,28 +1153,38 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
             start_progress(f"Reading {file_name}...")
 
             # Read the data with streaming
-            df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, read_rows, read_columns, delimiter, offset)
+            df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, num_rows, read_columns, delimiter, offset, where=where)
             total_record_count = None  # Will be computed later if needed
 
             stop_progress()
 
-        # Apply WHERE filter if specified. Because we read the full file when
-        # filtering, this matches across the whole file; then we truncate to the
-        # requested display window.
-        if where and not df.empty:
-            original_count = len(df)
-            df = apply_where_filter(df, where)
-            matched_count = len(df)
-            if num_rows > 0 and len(df) > num_rows:
-                df = df.head(num_rows)
-            message = f"Filtered: {matched_count} of {original_count} rows match '{where}'"
-            if matched_count > len(df):
-                message += f" (showing {len(df)})"
-            info(Fore.BLUE + message + Style.RESET_ALL)
+        # Report/apply the WHERE filter. Single-file readers filter WHILE
+        # streaming (stats.where_applied) and stop at num_rows matches; the
+        # multi-file path still reads its size-capped selection and is
+        # filtered here.
+        if where:
+            if streaming_stats is not None and streaming_stats.where_applied:
+                message = f"Filtered: {len(df)} matching rows"
+                if streaming_stats.rows_scanned is not None:
+                    message += f" (scanned {streaming_stats.rows_scanned:,} rows)"
+                if streaming_stats.row_groups_skipped:
+                    message += (f"; skipped {streaming_stats.row_groups_skipped} row "
+                                "group(s) via column statistics")
+                info(Fore.BLUE + message + Style.RESET_ALL)
+            elif not df.empty:
+                original_count = len(df)
+                df = apply_where_filter(df, where)
+                matched_count = len(df)
+                if num_rows > 0 and len(df) > num_rows:
+                    df = df.head(num_rows)
+                message = f"Filtered: {matched_count} of {original_count} rows match '{where}'"
+                if matched_count > len(df):
+                    message += f" (showing {len(df)})"
+                info(Fore.BLUE + message + Style.RESET_ALL)
 
-            # Re-apply the display projection: the filter column may have been
-            # read only to make the WHERE clause work.
-            if columns and read_columns != columns:
+            # Re-apply the display projection: the filter columns may have
+            # been read only to make the WHERE clause work.
+            if columns and read_columns != columns and len(df.columns):
                 requested_cols = [c.strip() for c in columns.split(',')]
                 visible = [c for c in requested_cols if c in df.columns]
                 if not visible:
@@ -1142,8 +1236,13 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
                 emit_count()
             return
 
-        # Render the data and write it to the output file or stdout.
-        rendered = _render_data(df, output_format)
+        # Render the data (or, with --stats, a per-column profile of it) and
+        # write it to the output file or stdout.
+        if show_stats:
+            info(Fore.CYAN + f"Column statistics over {len(df)} retrieved rows:" + Style.RESET_ALL)
+            rendered = _render_data(_column_stats(df), output_format)
+        else:
+            rendered = _render_data(df, output_format)
         if output_file:
             with open(output_file, 'w', encoding='utf-8', newline='') as f:
                 f.write(_strip_ansi(rendered))

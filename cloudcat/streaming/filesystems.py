@@ -59,7 +59,11 @@ def get_pyarrow_filesystem(
             "Install with: pip install pyarrow"
         )
 
-    if service == 's3':
+    if service == 'local':
+        # Local files get the same native-fs benefits (range reads, column
+        # projection) with no credentials at all.
+        return pa_fs.LocalFileSystem(), ''
+    elif service == 's3':
         return _get_s3_filesystem(aws_profile)
     elif service == 'gcs':
         return _get_gcs_filesystem(gcp_project, gcp_credentials)

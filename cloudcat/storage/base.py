@@ -1,30 +1,59 @@
 """Base storage utilities for cloud path parsing and operations."""
 
 import io
+import os
 from typing import Tuple, List, Union, BinaryIO
 
 
+def _parse_local_path(raw: str) -> Tuple[str, str, str]:
+    """Normalize a local filesystem path into the (service, bucket, key) shape.
+
+    Uses bucket='' and an absolute object_path. A trailing '/' is preserved
+    (and added for existing directories) so the CLI's directory detection
+    works the same way it does for cloud prefixes.
+    """
+    expanded = os.path.expanduser(raw)
+    is_dir_hint = expanded.endswith('/') or expanded.endswith(os.sep)
+    absolute = os.path.abspath(expanded)
+    if is_dir_hint or os.path.isdir(absolute):
+        absolute = absolute.rstrip('/') + '/'
+    return 'local', '', absolute
+
+
 def parse_cloud_path(path: str) -> Tuple[str, str, str]:
-    """Parse a cloud storage path into service, bucket/container, and object components.
+    """Parse a storage path into service, bucket/container, and object components.
+
+    Supports gs://, gcs://, s3://, abfss:// cloud URLs plus local files —
+    either file:// URLs or plain filesystem paths (relative, absolute, or ~).
 
     The URL is split manually rather than with urllib.parse: '#' and '?' are
     legal characters in object keys, and urlparse would silently truncate the
     key at either (fragment/query), fetching the wrong object.
 
     Args:
-        path: Cloud storage URL (gcs://, s3://, or abfss://).
+        path: Storage URL or local filesystem path.
 
     Returns:
         Tuple of (service, bucket, object_path).
 
     Raises:
-        ValueError: If the URL scheme is not supported.
+        ValueError: If the path is empty or the URL scheme is not supported.
     """
+    if not path:
+        raise ValueError(
+            "Empty path. Use gs://, gcs://, s3://, abfss://, file://, "
+            "or a local filesystem path."
+        )
+
     if '://' in path:
         scheme, rest = path.split('://', 1)
         scheme = scheme.lower()
     else:
-        scheme, rest = '', path
+        # No scheme: treat as a local filesystem path.
+        return _parse_local_path(path)
+
+    if scheme == 'file':
+        return _parse_local_path('/' + rest.lstrip('/'))
 
     if '/' in rest:
         netloc, object_path = rest.split('/', 1)
@@ -57,7 +86,7 @@ def parse_cloud_path(path: str) -> Tuple[str, str, str]:
     else:
         raise ValueError(
             f"Unsupported scheme: {scheme or '(none)'}. "
-            "Use gs://, gcs://, s3://, or abfss://."
+            "Use gs://, gcs://, s3://, abfss://, file://, or a local path."
         )
 
     return service, bucket, object_path
@@ -77,7 +106,10 @@ def get_stream(service: str, bucket: str, object_path: str) -> Union[io.BytesIO,
     Raises:
         ValueError: If the service is not supported.
     """
-    if service == 'gcs':
+    if service == 'local':
+        from .local import get_local_stream
+        return get_local_stream(bucket, object_path)
+    elif service == 'gcs':
         from .gcs import get_gcs_stream
         return get_gcs_stream(bucket, object_path)
     elif service == 's3':
@@ -104,7 +136,10 @@ def get_file_size(service: str, bucket: str, object_path: str) -> int:
     Raises:
         ValueError: If the service is not supported.
     """
-    if service == 'gcs':
+    if service == 'local':
+        from .local import get_local_file_size
+        return get_local_file_size(bucket, object_path)
+    elif service == 'gcs':
         from .gcs import get_gcs_file_size
         return get_gcs_file_size(bucket, object_path)
     elif service == 's3':
@@ -131,7 +166,10 @@ def list_directory(service: str, bucket: str, prefix: str) -> List[Tuple[str, in
     Raises:
         ValueError: If the service is not supported.
     """
-    if service == 'gcs':
+    if service == 'local':
+        from .local import list_local_directory
+        return list_local_directory(bucket, prefix)
+    elif service == 'gcs':
         from .gcs import list_gcs_directory
         return list_gcs_directory(bucket, prefix)
     elif service == 's3':

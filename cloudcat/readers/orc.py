@@ -51,7 +51,8 @@ def read_orc_data_streaming(
     columns: Optional[str] = None,
     stats: Optional[StreamingStats] = None,
     pyarrow_fs: Optional[Any] = None,
-    pyarrow_path: Optional[str] = None
+    pyarrow_path: Optional[str] = None,
+    where: Optional[str] = None
 ) -> Tuple[pd.DataFrame, pd.Series, Optional[StreamingStats]]:
     """Read ORC data with streaming support.
 
@@ -91,23 +92,63 @@ def read_orc_data_streaming(
     # Use native PyArrow filesystem if available
     if pyarrow_fs is not None and pyarrow_path is not None:
         return _read_with_native_fs(
-            pyarrow_fs, pyarrow_path, num_rows, col_names, stats
+            pyarrow_fs, pyarrow_path, num_rows, col_names, stats, where
         )
 
     # Fallback: use stream with temp file approach
-    return _read_with_stream(stream, num_rows, col_names, stats)
+    return _read_with_stream(stream, num_rows, col_names, stats, where)
 
 
-def _read_orc_rows(orc_file, num_rows: int, col_names: Optional[list]) -> pd.DataFrame:
+def _read_orc_rows(
+    orc_file,
+    num_rows: int,
+    col_names: Optional[list],
+    stats: Optional[StreamingStats] = None,
+    where: Optional[str] = None
+) -> pd.DataFrame:
     """Read up to num_rows from an open ORCFile, stopping early by stripe.
 
-    Reading stripe-by-stripe avoids materializing the entire table when only a
-    small preview is requested.
+    Reading stripe-by-stripe avoids materializing the entire table when only
+    a small preview is requested. With ``where``, each stripe is filtered as
+    it is read and reading stops at ``num_rows`` matches (pyarrow exposes no
+    per-stripe statistics, so no stripes are skipped — but memory stays
+    bounded by the matches).
     """
+    import pyarrow as pa
+
+    if where:
+        from ..filtering import apply_where_filter
+        frames = []
+        first_frame = None
+        matched = 0
+        scanned = 0
+        for i in range(orc_file.nstripes):
+            if num_rows > 0 and matched >= num_rows:
+                break
+            frame = pa.Table.from_batches([orc_file.read_stripe(i, columns=col_names)]).to_pandas()
+            if first_frame is None:
+                first_frame = frame
+            scanned += len(frame)
+            hits = apply_where_filter(frame, where)
+            if not hits.empty:
+                if num_rows > 0 and matched + len(hits) > num_rows:
+                    hits = hits.head(num_rows - matched)
+                frames.append(hits)
+                matched += len(hits)
+
+        if stats is not None:
+            stats.rows_scanned = scanned
+            stats.where_applied = True
+
+        if frames:
+            return pd.concat(frames, ignore_index=True)
+        if first_frame is not None:
+            return first_frame.head(0)
+        return orc_file.read(columns=col_names).to_pandas().head(0)
+
     if num_rows <= 0:
         return orc_file.read(columns=col_names).to_pandas()
 
-    import pyarrow as pa
     batches = []  # list of pyarrow.RecordBatch
     rows_read = 0
     for i in range(orc_file.nstripes):
@@ -135,7 +176,8 @@ def _read_with_native_fs(
     path: str,
     num_rows: int,
     col_names: Optional[list],
-    stats: StreamingStats
+    stats: StreamingStats,
+    where: Optional[str] = None
 ) -> Tuple[pd.DataFrame, pd.Series, StreamingStats]:
     """Read ORC using PyArrow native filesystem."""
     stats.used_native_fs = True
@@ -146,7 +188,7 @@ def _read_with_native_fs(
         orc_file = orc.ORCFile(f)
 
         # Read data with column projection, stopping early by stripe.
-        full_df = _read_orc_rows(orc_file, num_rows, col_names)
+        full_df = _read_orc_rows(orc_file, num_rows, col_names, stats, where)
 
         # Full schema is derived from metadata only (no extra data read).
         full_schema = _full_schema_dtypes(orc_file)
@@ -162,7 +204,8 @@ def _read_with_stream(
     stream: Union[BinaryIO, str],
     num_rows: int,
     col_names: Optional[list],
-    stats: StreamingStats
+    stats: StreamingStats,
+    where: Optional[str] = None
 ) -> Tuple[pd.DataFrame, pd.Series, StreamingStats]:
     """Read ORC from a stream (fallback for compressed files)."""
     stats.used_native_fs = False
@@ -187,7 +230,7 @@ def _read_with_stream(
         orc_file = orc.ORCFile(temp_path)
 
         # Read data with column projection, stopping early by stripe.
-        full_df = _read_orc_rows(orc_file, num_rows, col_names)
+        full_df = _read_orc_rows(orc_file, num_rows, col_names, stats, where)
 
         # Full schema is derived from metadata only (no extra data read).
         full_schema = _full_schema_dtypes(orc_file)
