@@ -96,7 +96,10 @@ def decompress_stream(stream: Union[BinaryIO, bytes], compression: str) -> io.By
     elif compression == 'lz4':
         if not HAS_LZ4:
             raise ValueError("lz4 package is required for .lz4 files. Install with: pip install lz4")
-        decompressed = lz4.decompress(data)
+        # Read via a frame file (not lz4.decompress()) so multi-frame lz4 data
+        # is fully decoded — decompress() stops after the first frame, silently
+        # dropping the rest of concatenated-frame files.
+        decompressed = lz4.open(io.BytesIO(data), mode='rb').read()
     elif compression == 'snappy':
         if not HAS_SNAPPY:
             raise ValueError("python-snappy package is required for .snappy files. Install with: pip install python-snappy")
@@ -192,9 +195,11 @@ def get_streaming_decompressor(
                 "zstandard package is required for .zst files. "
                 "Install with: pip install zstandard"
             )
-        # ZstdDecompressor.stream_reader() provides streaming decompression
+        # ZstdDecompressor.stream_reader() provides streaming decompression.
+        # Wrap it in a BufferedReader: the raw zstd reader only supports
+        # read(), and the JSON/text readers iterate their stream by lines.
         dctx = zstd.ZstdDecompressor()
-        return dctx.stream_reader(stream), True
+        return io.BufferedReader(dctx.stream_reader(stream)), True
 
     elif compression == 'lz4':
         if not HAS_LZ4:

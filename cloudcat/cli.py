@@ -650,8 +650,11 @@ def get_record_count(
             # Read content to detect format
             content = stream.read()
             if isinstance(content, bytes):
-                content = content.decode('utf-8')
+                content = content.decode('utf-8', errors='replace')
 
+            # Strip a UTF-8 BOM: str.strip() does not remove it and it would
+            # defeat the first-character format detection below.
+            content = content.lstrip('\ufeff')
             content_stripped = content.strip()
             if not content_stripped:
                 return 0
@@ -733,6 +736,7 @@ def get_record_count_multiple_files(
     """
     info(Fore.YELLOW + f"Counting records across {len(file_list)} files..." + Style.RESET_ALL)
     total_count = 0
+    failures = []
 
     for file_name, file_size in file_list:
         try:
@@ -741,9 +745,23 @@ def get_record_count_multiple_files(
                 total_count += count
                 info(Fore.BLUE + f"  {file_name}: {count:,} records" + Style.RESET_ALL)
             else:
+                failures.append((file_name, count))
                 info(Fore.YELLOW + f"  {file_name}: {count}" + Style.RESET_ALL)
         except Exception as e:
+            failures.append((file_name, e))
             info(Fore.YELLOW + f"  {file_name}: Error - {str(e)}" + Style.RESET_ALL)
+
+    # Never report a fabricated total: if every file failed, that is not
+    # "0 records" — raise so the caller prints "Could not count records".
+    if failures and len(failures) == len(file_list):
+        first_name, first_err = failures[0]
+        raise ValueError(
+            f"could not count any of the {len(file_list)} files; "
+            f"first error on '{first_name}': {first_err}"
+        )
+    if failures:
+        info(Fore.YELLOW + f"Warning: {len(failures)} of {len(file_list)} files could not "
+             "be counted; the total covers only the readable files." + Style.RESET_ALL)
 
     return total_count
 
@@ -893,8 +911,26 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
     # Reading all rows lets us return up to num_rows *matching* rows.
     read_rows = 0 if where else num_rows
 
+    # When filtering, read the filter column even if it is not displayed:
+    # projection happens inside the readers, and filtering on a projected-away
+    # column would otherwise fail with "Column not found". The display
+    # projection is re-applied after the filter.
+    read_columns = columns
+    if where and columns:
+        try:
+            filter_column = parse_where_clause(where)[0]
+        except ValueError as e:
+            click.echo(Fore.RED + f"Error: {str(e)}" + Style.RESET_ALL, err=True)
+            sys.exit(1)
+        requested_cols = [c.strip() for c in columns.split(',')]
+        if filter_column not in requested_cols:
+            read_columns = ','.join(requested_cols + [filter_column])
+
     try:
-        # Configure cloud credentials from CLI options
+        # Configure cloud credentials from CLI options. Reset first so options
+        # from a previous in-process invocation (tests, library use) never
+        # leak into this one.
+        cloud_config.reset()
         if profile:
             cloud_config.aws_profile = profile
         if project:
@@ -941,7 +977,7 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
                 start_progress(f"Reading {file_name}...")
 
                 # Read the data from the single file with streaming
-                df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, read_rows, columns, delimiter, offset)
+                df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, read_rows, read_columns, delimiter, offset)
                 total_record_count = None  # Will be computed later if needed
 
                 # Stop progress
@@ -970,7 +1006,7 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
 
                     # Use streaming read for all formats
                     df, full_schema, streaming_stats = read_data_streaming(
-                        service, bucket, single_file_path, input_format, read_rows, columns, delimiter, offset
+                        service, bucket, single_file_path, input_format, read_rows, read_columns, delimiter, offset
                     )
                     stop_progress()
 
@@ -981,7 +1017,7 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
                     # Read data from multiple files with progress updates
                     update_progress(f"Reading {len(file_list)} files...")
                     df, full_schema, rows_in_files = read_data_from_multiple_files(
-                        service, bucket, file_list, input_format, read_rows, columns, delimiter, offset, quiet=True
+                        service, bucket, file_list, input_format, read_rows, read_columns, delimiter, offset, quiet=True
                     )
 
                     # Stop progress before any output
@@ -1009,7 +1045,10 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
                         info(Fore.YELLOW + f"\nWarning: --count will scan {len(all_files)} files ({all_files_size_mb:.1f} MB total)." + Style.RESET_ALL)
                         if not click.confirm("Continue?", default=True, err=True):
                             info("Aborted.")
-                            return
+                            # Non-zero exit so `cloudcat ... && next-step`
+                            # does not proceed as if the count succeeded.
+                            # (SystemExit bypasses the generic except below.)
+                            sys.exit(1)
 
                     multi_file_list = all_files
                     # Update stats to reflect all files
@@ -1030,7 +1069,7 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
             start_progress(f"Reading {file_name}...")
 
             # Read the data with streaming
-            df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, read_rows, columns, delimiter, offset)
+            df, full_schema, streaming_stats = read_data_streaming(service, bucket, object_path, input_format, read_rows, read_columns, delimiter, offset)
             total_record_count = None  # Will be computed later if needed
 
             stop_progress()
@@ -1041,10 +1080,24 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
         if where and not df.empty:
             original_count = len(df)
             df = apply_where_filter(df, where)
+            matched_count = len(df)
             if num_rows > 0 and len(df) > num_rows:
                 df = df.head(num_rows)
-            filtered_count = len(df)
-            info(Fore.BLUE + f"Filtered: {filtered_count} of {original_count} rows match '{where}'" + Style.RESET_ALL)
+            message = f"Filtered: {matched_count} of {original_count} rows match '{where}'"
+            if matched_count > len(df):
+                message += f" (showing {len(df)})"
+            info(Fore.BLUE + message + Style.RESET_ALL)
+
+            # Re-apply the display projection: the filter column may have been
+            # read only to make the WHERE clause work.
+            if columns and read_columns != columns:
+                requested_cols = [c.strip() for c in columns.split(',')]
+                visible = [c for c in requested_cols if c in df.columns]
+                if not visible:
+                    raise ValueError(
+                        f"None of the requested columns exist. Available: {', '.join(df.columns)}"
+                    )
+                df = df[visible]
 
         def emit_count(prefix=""):
             """Compute (if needed) and print the total record count to stderr."""
@@ -1072,7 +1125,13 @@ def main(path, output_format, output_file, input_format, columns, num_rows, offs
             schema_lines += [f"  {col}: {dtype}" for col, dtype in full_schema.items()]
             schema_text = '\n'.join(schema_lines)
             if schema == 'schema_only':
-                click.echo(schema_text)
+                # The schema IS the requested output: honor --output-file.
+                if output_file:
+                    with open(output_file, 'w', encoding='utf-8', newline='') as f:
+                        f.write(_strip_ansi(schema_text) + '\n')
+                    info(Fore.GREEN + f"Wrote schema to {output_file}" + Style.RESET_ALL)
+                else:
+                    click.echo(schema_text)
             else:
                 info(schema_text)
                 info("")

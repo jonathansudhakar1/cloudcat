@@ -221,6 +221,10 @@ def _read_json_array(content: str, num_rows: int) -> Tuple[pd.DataFrame, pd.Seri
 
 def _read_json_fallback(content: str, num_rows: int) -> Tuple[pd.DataFrame, pd.Series]:
     """Fallback JSON reading for mixed formats."""
+    # Strip a UTF-8 BOM (common in files from Windows tooling). str.strip()
+    # does not remove it, and a leading BOM defeats every parse branch below,
+    # silently yielding an empty frame for a perfectly valid file.
+    content = content.lstrip('\ufeff')
     content_stripped = content.strip()
 
     if not content_stripped:

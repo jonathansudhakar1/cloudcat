@@ -26,47 +26,66 @@ def parse_where_clause(where_clause: str) -> Tuple[str, str, str]:
         >>> parse_where_clause("name contains john")
         ('name', 'contains', 'john')
     """
-    # Handle multi-word operators first (longer ones first to avoid partial matches)
     lower_clause = where_clause.lower()
 
-    # Compound conditions are not supported and would otherwise mis-parse
-    # silently (AND -> "column not found"; OR -> empty result). Fail clearly.
-    if ' and ' in lower_clause or ' or ' in lower_clause:
+    # Locate the earliest comparison operator (=, !=, <, >, <=, >=), preferring
+    # the longest match at that position (so '<=' beats '<').
+    cmp_candidates = [
+        (where_clause.find(op), -len(op), op)
+        for op in ['!=', '<=', '>=', '=', '<', '>']
+        if op in where_clause
+    ]
+    first_cmp = min(cmp_candidates) if cmp_candidates else None
+
+    # Locate the earliest word operator (contains, startswith, ...), preferring
+    # the longest match (so ' not contains ' beats ' contains ').
+    word_candidates = [
+        (lower_clause.find(f' {op} '), -len(op), op)
+        for op in ['not contains', 'contains', 'startswith', 'endswith']
+        if f' {op} ' in lower_clause
+    ]
+    first_word = min(word_candidates) if word_candidates else None
+
+    # Pick whichever operator appears first in the clause. This keeps a word
+    # operator inside an equality's value (e.g. "note=this contains that")
+    # from hijacking the parse.
+    column = op = value = None
+    if first_cmp is not None and (first_word is None or first_cmp[0] < first_word[0]):
+        idx, _, op = first_cmp
+        column = where_clause[:idx].strip()
+        value = where_clause[idx + len(op):].strip()
+    elif first_word is not None:
+        idx, _, op = first_word
+        column = where_clause[:idx].strip()
+        value = where_clause[idx + len(op) + 2:].strip()
+    else:
         raise ValueError(
-            "Compound conditions with AND/OR are not supported. "
-            "Use a single condition, e.g. column=value."
+            f"Invalid WHERE clause: {where_clause}. "
+            "Use format: column=value, column>value, column contains value, etc."
         )
 
-    for op in ['not contains', 'contains', 'startswith', 'endswith']:
-        if f' {op} ' in lower_clause:
-            # Find the operator position in the lowercase string
-            idx = lower_clause.find(f' {op} ')
-            # Extract column and value using the index (preserves original case)
-            column = where_clause[:idx].strip()
-            value = where_clause[idx + len(op) + 2:].strip()
-            # Remove quotes if present
-            if (value.startswith('"') and value.endswith('"')) or \
-               (value.startswith("'") and value.endswith("'")):
-                value = value[1:-1]
-            return column, op, value
+    # Remove quotes if present; a quoted value is taken verbatim.
+    quoted = False
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+        value = value[1:-1]
+        quoted = True
 
-    # Handle comparison operators
-    for op in ['!=', '<=', '>=', '=', '<', '>']:
-        if op in where_clause:
-            parts = where_clause.split(op, 1)
-            if len(parts) == 2:
-                column = parts[0].strip()
-                value = parts[1].strip()
-                # Remove quotes if present
-                if (value.startswith('"') and value.endswith('"')) or \
-                   (value.startswith("'") and value.endswith("'")):
-                    value = value[1:-1]
-                return column, op, value
+    # Compound conditions are not supported and would otherwise mis-parse
+    # silently (AND -> "column not found"; OR -> empty result). Fail clearly —
+    # but only for unquoted text: a quoted value may legitimately contain
+    # the words "and"/"or" (e.g. title='Alice and Bob').
+    def _has_compound(text: str) -> bool:
+        padded = f' {text.lower()} '
+        return ' and ' in padded or ' or ' in padded
 
-    raise ValueError(
-        f"Invalid WHERE clause: {where_clause}. "
-        "Use format: column=value, column>value, column contains value, etc."
-    )
+    if _has_compound(column) or (not quoted and _has_compound(value)):
+        raise ValueError(
+            "Compound conditions with AND/OR are not supported. "
+            "Use a single condition, e.g. column=value. "
+            "If your value contains the word 'and'/'or', quote it: col='a and b'."
+        )
+
+    return column, op, value
 
 
 def apply_where_filter(df: pd.DataFrame, where_clause: str) -> pd.DataFrame:
@@ -106,7 +125,10 @@ def apply_where_filter(df: pd.DataFrame, where_clause: str) -> pd.DataFrame:
     if op == '=':
         mask = df[column] == converted_value
     elif op == '!=':
-        mask = df[column] != converted_value
+        # Exclude nulls explicitly: pandas' NaN != x is always True, which
+        # would make missing values match. SQL semantics (and the '='/string
+        # operators here) all exclude NULL, so '!=' must too.
+        mask = (df[column] != converted_value) & df[column].notna()
     elif op == '<':
         mask = df[column] < converted_value
     elif op == '>':

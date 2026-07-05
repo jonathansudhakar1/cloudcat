@@ -119,6 +119,19 @@ def read_avro_data_streaming(
 
     stats.bytes_read = bytes_read
 
+    # Validate requested columns against the actual record fields — the
+    # filtered frame can't be used for this: when every requested column is
+    # missing, the records all filter to {} and the frame looks "empty",
+    # which previously suppressed both the warning and the error.
+    if col_names and full_schema_record is not None:
+        available = list(full_schema_record)
+        valid_cols = [c for c in col_names if c in available]
+        if len(valid_cols) != len(col_names):
+            missing = set(col_names) - set(valid_cols)
+            click.echo(Fore.YELLOW + f"Warning: Columns not found: {', '.join(missing)}" + Style.RESET_ALL)
+        if not valid_cols:
+            raise ValueError(f"None of the requested columns exist. Available: {', '.join(available)}")
+
     # Convert to DataFrame
     if records:
         df = pd.DataFrame(records)
@@ -130,12 +143,5 @@ def read_avro_data_streaming(
         full_schema = pd.DataFrame([full_schema_record]).dtypes
     else:
         full_schema = df.dtypes
-
-    # Validate columns if filtering was requested
-    if col_names and not df.empty:
-        valid_cols = [c for c in col_names if c in df.columns]
-        if len(valid_cols) != len(col_names):
-            missing = set(col_names) - set(valid_cols)
-            click.echo(Fore.YELLOW + f"Warning: Columns not found: {', '.join(missing)}" + Style.RESET_ALL)
 
     return df, full_schema, stats

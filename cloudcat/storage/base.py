@@ -2,11 +2,14 @@
 
 import io
 from typing import Tuple, List, Union, BinaryIO
-from urllib.parse import urlparse
 
 
 def parse_cloud_path(path: str) -> Tuple[str, str, str]:
     """Parse a cloud storage path into service, bucket/container, and object components.
+
+    The URL is split manually rather than with urllib.parse: '#' and '?' are
+    legal characters in object keys, and urlparse would silently truncate the
+    key at either (fragment/query), fetching the wrong object.
 
     Args:
         path: Cloud storage URL (gcs://, s3://, or abfss://).
@@ -17,23 +20,30 @@ def parse_cloud_path(path: str) -> Tuple[str, str, str]:
     Raises:
         ValueError: If the URL scheme is not supported.
     """
-    parsed = urlparse(path)
+    if '://' in path:
+        scheme, rest = path.split('://', 1)
+        scheme = scheme.lower()
+    else:
+        scheme, rest = '', path
 
-    if parsed.scheme == 'gs' or parsed.scheme == 'gcs':
+    if '/' in rest:
+        netloc, object_path = rest.split('/', 1)
+    else:
+        netloc, object_path = rest, ''
+    object_path = object_path.lstrip('/')
+
+    if scheme in ('gs', 'gcs'):
         service = 'gcs'
-        bucket = parsed.netloc
-        object_path = parsed.path.lstrip('/')
-    elif parsed.scheme == 's3':
+        bucket = netloc
+    elif scheme == 's3':
         service = 's3'
-        bucket = parsed.netloc
-        object_path = parsed.path.lstrip('/')
-    elif parsed.scheme == 'abfss':
+        bucket = netloc
+    elif scheme == 'abfss':
         # Azure Data Lake Storage Gen2 (ADLS Gen2)
         # Format: abfss://container@storageaccount.dfs.core.windows.net/path
         # The storage account is encoded in the host, which is why bare az://
         # URLs are not supported — they carry no account information.
         service = 'azure'
-        netloc = parsed.netloc
         if '@' in netloc:
             bucket, storage_account = netloc.split('@', 1)
             # Store storage account info for later use
@@ -44,10 +54,9 @@ def parse_cloud_path(path: str) -> Tuple[str, str, str]:
             cloud_config.azure_account = storage_account.split('.')[0]
         else:
             bucket = netloc
-        object_path = parsed.path.lstrip('/')
     else:
         raise ValueError(
-            f"Unsupported scheme: {parsed.scheme or '(none)'}. "
+            f"Unsupported scheme: {scheme or '(none)'}. "
             "Use gs://, gcs://, s3://, or abfss://."
         )
 
