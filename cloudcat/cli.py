@@ -42,6 +42,7 @@ from .storage.base import (
     list_directory,
     get_file_size,
 )
+from .completion import complete_path as _complete_path
 
 
 def info(message: str) -> None:
@@ -929,7 +930,7 @@ def _render_data(df, output_format: str) -> str:
 
 @click.command()
 @click.version_option(version=__version__, prog_name='cloudcat')
-@click.argument('path_arg', required=False, metavar='[PATH]')
+@click.argument('path_arg', required=False, metavar='[PATH]', shell_complete=_complete_path)
 @click.option('--path', '-p', 'path_opt',
               help='Path to the file or directory (deprecated alias for the PATH argument)')
 @click.option('--output-format', '-o', type=click.Choice(['json', 'jsonp', 'csv', 'table']), default='table',
