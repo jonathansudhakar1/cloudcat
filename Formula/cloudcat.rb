@@ -1,13 +1,13 @@
 class Cloudcat < Formula
   desc "Preview and analyze data files in cloud storage from your terminal"
   homepage "https://github.com/jonathansudhakar1/cloudcat"
-  version "0.5.1"
+  version "0.6.0"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/jonathansudhakar1/cloudcat/releases/download/v0.5.1/cloudcat-0.5.1-macos-arm64.tar.gz"
-      sha256 "41c54f0d5cc29384202365ba180beab4c0e167da0aaa4c06b8ed57f74f3f9b1e"
+      url "https://github.com/jonathansudhakar1/cloudcat/releases/download/v0.6.0/cloudcat-0.6.0-macos-arm64.tar.gz"
+      sha256 "ce9c9070ceb3443a1b790cfc18860ea7394e80f5c48f787933f1a646f40a539c"
     end
     on_intel do
       odie "Intel Macs are not supported. Please use: pip install 'cloudcat[all]'"
