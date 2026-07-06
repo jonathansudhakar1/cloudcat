@@ -1,6 +1,6 @@
 ---
 name: cloudcat
-description: Use when you need to quickly inspect, preview, sample, filter, count, or profile a data file or directory (CSV, JSON/JSONL, Parquet, Avro, ORC, text; gzip/zstd/lz4/snappy/bz2 compressed) on S3, GCS, Azure, or local disk — instead of writing pandas/pyarrow code or downloading whole files.
+description: Use when you need to quickly inspect, preview, sample, filter, count, or profile a data file, directory, or lakehouse table (CSV, JSON/JSONL, Parquet, Avro, ORC, text, Delta Lake, Apache Iceberg; gzip/zstd/lz4/snappy/bz2 compressed) on S3, GCS, Azure, or local disk — instead of writing pandas/pyarrow code or downloading whole files.
 ---
 
 # cloudcat — fast data scanning
@@ -12,6 +12,8 @@ description: Use when you need to quickly inspect, preview, sample, filter, coun
 `file://…`, or a plain local path (no credentials needed for local).
 Directories (Spark/Hive output like `s3://bucket/output/`) work directly —
 part files are discovered and merged, `_SUCCESS`/metadata files skipped.
+Delta Lake and Iceberg table directories are auto-detected and read
+snapshot-aware (only live files; needs `pip install 'cloudcat[tables]'`).
 
 ## Setup
 
@@ -50,7 +52,8 @@ flags beyond it (credentials, delimiters, config profiles).
 | Only some columns | add `-c col1,col2` |
 | Paginate filtered matches | add `--offset 50 -n 50` |
 | Export clean file | add `-o csv -O out.csv` |
-| Force format when extension lies | add `-i parquet` (csv, json, avro, orc, text) |
+| Force format when extension lies | add `-i parquet` (csv, json, avro, orc, text, delta, iceberg) |
+| Delta/Iceberg table: schema + exact count, metadata-only | `cloudcat TABLE_DIR/ -s schema_only --count -y` |
 
 ## Examples
 

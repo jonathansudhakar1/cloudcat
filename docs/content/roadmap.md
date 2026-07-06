@@ -28,10 +28,11 @@ CloudCat is actively developed. Here's what's been accomplished and what's plann
 - [x] **Local file support** - `file://` URLs and plain paths
 - [x] **Column statistics** - `--stats` per-column profile
 - [x] **Shell completion** - bash/zsh/fish via `--completion`
+- [x] **Delta Lake support** - Current-snapshot reads with filter pushdown
+- [x] **Iceberg support** - Catalog-less current-snapshot reads
 - [ ] **Interactive mode** - Pagination with keyboard navigation
 - [ ] **Sampling** - Random row sampling
-- [ ] **Delta Lake support** - Read Delta tables
-- [ ] **Iceberg support** - Read Iceberg tables
+- [ ] **Table time travel** - `--at-version` / `--at-snapshot`
 
 ### Under Consideration
 

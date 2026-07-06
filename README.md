@@ -83,6 +83,9 @@ pip install 'cloudcat[orc]'
 
 # With compression support (zstd, lz4, snappy)
 pip install 'cloudcat[compression]'
+
+# With lakehouse table support (Delta Lake / Apache Iceberg)
+pip install 'cloudcat[tables]'
 ```
 
 > **Note:** If using zsh (default on macOS), quotes around extras are required to prevent shell interpretation of brackets.
@@ -126,6 +129,9 @@ cloudcat -p abfss://logs@account.dfs.core.windows.net/app.log -i text
 # Read from a Spark output directory
 cloudcat -p s3://my-bucket/spark-output/ -i parquet
 
+# Read a Delta Lake or Iceberg table (auto-detected, current snapshot only)
+cloudcat s3://lake/orders_delta/ -w "status=refunded" -n 10
+
 # Read compressed files (auto-detected)
 cloudcat -p gcs://my-bucket/data.csv.gz
 
@@ -159,6 +165,8 @@ cloudcat -p gcs://bucket/data.csv --offset 100 -n 10
 | ORC | ✅ | Hive, Hadoop ecosystem |
 | Text | ✅ | Log files, plain text |
 | TSV | Via `--delimiter` | Tab-separated data |
+| Delta Lake | ✅ table dirs | Lakehouse tables (`cloudcat[delta]`) |
+| Apache Iceberg | ✅ table dirs | Lakehouse tables (`cloudcat[iceberg]`) |
 
 ### Streaming Efficiency
 
@@ -416,7 +424,8 @@ Options:
 
   -O, --output-file PATH       Write rendered data to a file instead of stdout
 
-  -i, --input-format TEXT      Input format: csv, json, parquet, avro, orc, text
+  -i, --input-format TEXT      Input format: csv, json, parquet, avro, orc,
+                               text, delta, iceberg
                                [default: auto-detect from extension]
 
   -c, --columns TEXT           Comma-separated list of columns to display
@@ -701,7 +710,10 @@ SKILL.md (or plain markdown) as instructions. See the
 - [x] Configuration file with named profiles
 - [x] Column statistics (`--stats`)
 - [x] Shell completion (bash/zsh/fish)
+- [x] Delta Lake support (current snapshot; `cloudcat[delta]`)
+- [x] Apache Iceberg support (current snapshot, catalog-less; `cloudcat[iceberg]`)
 - [ ] Interactive mode with pagination
+- [ ] Table time travel (`--at-version` / `--at-snapshot`)
 
 ## Related Projects
 

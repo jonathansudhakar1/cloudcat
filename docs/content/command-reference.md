@@ -20,7 +20,7 @@ cloudcat [OPTIONS]
 |--------|---------|-------------|
 | `-o, --output-format TEXT` | `table` | Output format: `table`, `json`, `jsonp`, `csv` |
 | `-O, --output-file PATH` | none | Write rendered data to a file instead of stdout |
-| `-i, --input-format TEXT` | auto-detect | Input format: `csv`, `json`, `parquet`, `avro`, `orc`, `text` |
+| `-i, --input-format TEXT` | auto-detect | Input format: `csv`, `json`, `parquet`, `avro`, `orc`, `text`, `delta`, `iceberg` (tables auto-detected for directories) |
 
 ### Data Selection Options
 
