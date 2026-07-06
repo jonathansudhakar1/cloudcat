@@ -472,7 +472,13 @@ Options:
 
   --config-profile TEXT        Named profile from ~/.config/cloudcat/config.toml
 
-  --completion [bash|zsh|fish] Print the shell completion script and exit
+  --completion [bash|zsh|fish] Print the shell completion script and exit.
+                               Once enabled, TAB completes PATH too: local
+                               files natively, s3://<TAB> lists buckets,
+                               s3://bucket/dir/<TAB> lists children (uses
+                               --profile/--project if already typed).
+                               bash note: escape the URL colon issue with
+                               COMP_WORDBREAKS=${COMP_WORDBREAKS//:/}
 
   --az-access-key TEXT         Azure storage account access key
 

@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import json
-from cloudcat.cli import format_table_with_colored_header, colorize_json
+from cloudcat.formatters import format_table_with_colored_header, colorize_json
 
 
 class TestOutputFormatting:
