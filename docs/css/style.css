@@ -955,3 +955,201 @@ tbody tr:hover {
     white-space: nowrap;
     border: 0;
 }
+
+/* ==========================================================================
+   2026 visual refresh — layered overrides (later rules win by cascade)
+   ========================================================================== */
+
+:root {
+    --color-local: #7ee787;
+    --color-lakehouse: #a371f7;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-pop: 0 18px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Hero: soft radial glow + tighter type ------------------------------ */
+.hero {
+    position: relative;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse 70% 55% at 50% -10%, rgba(88, 166, 255, 0.14), transparent 60%),
+        radial-gradient(ellipse 45% 40% at 82% 8%, rgba(163, 113, 247, 0.10), transparent 65%),
+        linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+.hero h1 {
+    font-size: 52px;
+    letter-spacing: -0.03em;
+    background: linear-gradient(120deg, var(--text-primary) 20%, var(--accent-primary) 60%, var(--accent-purple) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hero-tagline {
+    font-size: 19px;
+    letter-spacing: -0.01em;
+}
+
+.hero-demo .terminal {
+    box-shadow: var(--shadow-pop), 0 0 0 1px rgba(88, 166, 255, 0.08);
+    border-radius: 12px;
+}
+
+/* --- New provider badges ------------------------------------------------- */
+.provider-badge.local {
+    color: var(--color-local);
+    border-color: rgba(126, 231, 135, 0.35);
+    background: rgba(126, 231, 135, 0.08);
+}
+
+.provider-badge.lakehouse {
+    color: var(--color-lakehouse);
+    border-color: rgba(163, 113, 247, 0.35);
+    background: rgba(163, 113, 247, 0.08);
+}
+
+/* --- Documentation sections as cards ------------------------------------ */
+.doc-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    box-shadow: var(--shadow-card);
+}
+
+.doc-section > h2:first-child {
+    margin-top: 0;
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    letter-spacing: -0.02em;
+}
+
+.doc-section h2 {
+    scroll-margin-top: calc(var(--nav-height) + var(--spacing-lg));
+}
+
+/* --- Tables: rounded, striped, sticky-feeling headers -------------------- */
+.table-wrapper {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow-x: auto;
+    margin: var(--spacing-md) 0 var(--spacing-lg);
+    background: var(--bg-primary);
+}
+
+.table-wrapper table {
+    margin: 0;
+    border: none;
+    width: 100%;
+}
+
+.table-wrapper th {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: none;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.table-wrapper td {
+    border-bottom: 1px solid rgba(48, 54, 61, 0.6);
+}
+
+.table-wrapper tbody tr:nth-child(even) {
+    background: rgba(33, 38, 45, 0.45);
+}
+
+.table-wrapper tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table-wrapper tbody tr:hover {
+    background: rgba(88, 166, 255, 0.06);
+}
+
+/* --- Code blocks: framed, comfortable ------------------------------------ */
+.code-block {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-card);
+}
+
+.code-block pre {
+    padding: var(--spacing-md) var(--spacing-lg);
+    line-height: 1.65;
+}
+
+.code-block .copy-btn {
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.code-block:hover .copy-btn {
+    opacity: 1;
+}
+
+/* --- Table of contents: active rail -------------------------------------- */
+.toc a {
+    display: block;
+    padding: 4px 10px;
+    border-left: 2px solid transparent;
+    border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+    color: var(--text-secondary);
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.toc a:hover {
+    color: var(--text-primary);
+    background: rgba(88, 166, 255, 0.06);
+    text-decoration: none;
+}
+
+.toc a.active {
+    color: var(--accent-primary);
+    border-left-color: var(--accent-primary);
+    background: rgba(88, 166, 255, 0.08);
+    font-weight: 500;
+}
+
+/* --- Blockquotes (notes/callouts) ----------------------------------------- */
+.content blockquote {
+    border-left: 3px solid var(--accent-primary);
+    background: rgba(88, 166, 255, 0.06);
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    padding: var(--spacing-md) var(--spacing-lg);
+    margin: var(--spacing-md) 0 var(--spacing-lg);
+    color: var(--text-secondary);
+}
+
+.content blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+/* --- Scrollbars (WebKit) --------------------------------------------------- */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    border: 2px solid var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-color);
+}
+
+/* --- Small-screen card padding -------------------------------------------- */
+@media (max-width: 768px) {
+    .doc-section {
+        padding: var(--spacing-lg) var(--spacing-md);
+        border-radius: var(--border-radius);
+    }
+}
