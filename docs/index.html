@@ -892,6 +892,10 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 <td>Show per-column statistics (nulls, distinct, min/max) over the retrieved rows</td>
 </tr>
 <tr>
+<td><code>--install-completion [bash|zsh|fish]</code></td>
+<td>Enable shell completion with one command — appends one line to your rc file, idempotent</td>
+</tr>
+<tr>
 <td><code>--completion [bash|zsh|fish]</code></td>
 <td>Print the shell completion script and exit. With it enabled, TAB also completes PATH: local files natively, <code>s3://&lt;TAB&gt;</code> lists buckets, <code>s3://bucket/dir/&lt;TAB&gt;</code> lists immediate children (honors <code>--profile</code>/<code>--project</code> typed earlier; 1–2s network timeout, silent on failure). bash users: add <code>COMP_WORDBREAKS=${COMP_WORDBREAKS//:/}</code> so URLs don&#39;t split on <code>:</code></td>
 </tr>

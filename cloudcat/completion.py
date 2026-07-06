@@ -15,7 +15,51 @@ Behavior mirrors `ls` completion, scheme-aware:
 
 from typing import List, Optional, Tuple
 
-from click.shell_completion import CompletionItem
+import os
+
+from click.shell_completion import CompletionItem, ZshComplete, add_completion_class
+
+
+def _debug(message: str) -> None:
+    """Optionally record why a completion produced nothing.
+
+    Completion swallows every error so it can never break the shell — which
+    makes "TAB does nothing" undiagnosable. Set CLOUDCAT_COMPLETE_DEBUG=1 and
+    failures are appended to ~/.cache/cloudcat/completion.log instead.
+    """
+    if not os.environ.get('CLOUDCAT_COMPLETE_DEBUG'):
+        return
+    try:
+        import datetime
+        cache_dir = os.path.join(
+            os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache')), 'cloudcat')
+        os.makedirs(cache_dir, exist_ok=True)
+        with open(os.path.join(cache_dir, 'completion.log'), 'a', encoding='utf-8') as f:
+            f.write(f"{datetime.datetime.now().isoformat()} {message}\n")
+    except Exception:
+        pass
+
+
+class CloudcatZshComplete(ZshComplete):
+    """Click's zsh completer, hardened for real-world .zshrc files.
+
+    The stock script calls compdef unconditionally; if the user evals it
+    before compinit has run, registration fails silently and TAB "does
+    nothing". This variant bootstraps compinit when needed.
+    """
+
+    name = 'zsh'
+    source_template = ZshComplete.source_template.replace(
+        "    compdef %(complete_func)s %(prog_name)s",
+        """    if ! typeset -f compdef >/dev/null 2>&1; then
+        autoload -Uz compinit && compinit -u
+    fi
+    compdef %(complete_func)s %(prog_name)s""",
+    )
+
+
+# Replace the registered zsh completer with the hardened variant.
+add_completion_class(CloudcatZshComplete)
 
 # Never return more candidates than a shell menu can usefully show.
 LIMIT = 100
@@ -36,7 +80,10 @@ def _s3_client(profile: Optional[str]):
     config = Config(connect_timeout=CONNECT_TIMEOUT, read_timeout=READ_TIMEOUT,
                     retries={'max_attempts': 0})
     session = boto3.Session(profile_name=profile) if profile else boto3.Session()
-    return session.client('s3', config=config)
+    # Without a configured region some boto3 versions raise NoRegionError at
+    # client creation; bucket listing is region-agnostic, so default it.
+    region = session.region_name or 'us-east-1'
+    return session.client('s3', region_name=region, config=config)
 
 
 def _list_s3_buckets(profile: Optional[str]) -> List[str]:
@@ -196,4 +243,6 @@ def complete_path(ctx, param, incomplete: str) -> List[CompletionItem]:
         return items
     except Exception:
         # Completion must never break the shell: no candidates beats a stack.
+        import traceback
+        _debug(f"complete_path({incomplete!r}) failed:\n{traceback.format_exc()}")
         return []
