@@ -607,6 +607,11 @@ def get_record_count(
     Returns:
         Record count (int) or "Unknown" on failure.
     """
+    # Lakehouse tables carry snapshot row counts in their metadata layer.
+    if input_format in ('delta', 'iceberg'):
+        from .tables import table_row_count
+        return table_row_count(service, bucket, object_path, input_format)
+
     # Detect compression from file path
     compression = detect_compression(object_path)
 
@@ -925,8 +930,9 @@ def _render_data(df: pd.DataFrame, output_format: str) -> str:
               help='Output format (default: table)')
 @click.option('--output-file', '-O', type=click.Path(dir_okay=False, writable=True),
               help='Write rendered data to this file instead of stdout')
-@click.option('--input-format', '-i', type=click.Choice(['json', 'csv', 'parquet', 'avro', 'orc', 'text']),
-              help='Input format (default: inferred from path)')
+@click.option('--input-format', '-i',
+              type=click.Choice(['json', 'csv', 'parquet', 'avro', 'orc', 'text', 'delta', 'iceberg']),
+              help='Input format (default: inferred from path; delta/iceberg tables auto-detected for directories)')
 @click.option('--columns', '-c', help='Comma-separated list of columns to display (default: all)')
 @click.option('--num-rows', '-n', default=10, type=click.IntRange(min=0),
               help='Number of rows to display, 0 = all (default: 10)')
@@ -1079,8 +1085,32 @@ def main(path_arg, path_opt, output_format, output_file, input_format, columns, 
         streaming_stats = None
         multi_file_list = None  # For directory reads with --count
 
+        # Lakehouse tables (Delta Lake / Iceberg): explicitly requested via
+        # --input-format, or auto-detected from the table's marker directory.
+        from .tables import TABLE_FORMATS, detect_table_format, read_table_data
+        table_format = input_format if input_format in TABLE_FORMATS else None
+        if table_format is None and is_directory:
+            table_format = detect_table_format(service, bucket, object_path)
+            if table_format:
+                info(Fore.BLUE + f"Detected {table_format} table" + Style.RESET_ALL)
+
+        if table_format:
+            if not is_directory:
+                raise ValueError(
+                    f"{table_format} tables are directories; point at the table root "
+                    "(end the path with '/')."
+                )
+            input_format = table_format
+            start_progress(f"Reading {table_format} table...")
+            df, full_schema, streaming_stats = read_table_data(
+                service, bucket, object_path, table_format,
+                num_rows, read_columns, offset, where
+            )
+            stop_progress()
+            total_record_count = None  # computed on demand by --count
+
         # Handle directory paths based on multi-file-mode
-        if is_directory:
+        elif is_directory:
             if multi_file_mode == 'first' or (multi_file_mode == 'auto' and max_size_mb <= 0):
                 # Use a single file
                 start_progress("Listing files...")
