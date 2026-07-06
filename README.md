@@ -472,6 +472,10 @@ Options:
 
   --config-profile TEXT        Named profile from ~/.config/cloudcat/config.toml
 
+  --install-completion [bash|zsh|fish]
+                               Enable completion with one command (adds one
+                               line to your shell rc file; idempotent)
+
   --completion [bash|zsh|fish] Print the shell completion script and exit.
                                Once enabled, TAB completes PATH too: local
                                files natively, s3://<TAB> lists buckets,

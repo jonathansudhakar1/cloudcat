@@ -202,6 +202,35 @@ def get_files_for_multiread(
     return selected_files
 
 
+_ICEBERG_NESTED_RE = re.compile(r'(.*)/metadata/(?:v\d+|\d+-[^/]*)\.metadata\.json$')
+
+
+def _find_nested_tables(files: List[Tuple[str, int]]) -> dict:
+    """Find lakehouse table roots nested inside a directory listing.
+
+    Returns {root_path: format}. Used to guide users who point cloudcat at
+    a folder OF tables rather than at a table — merging data files across
+    different tables would silently produce wrong results.
+    """
+    tables = {}
+    for name, _size in files:
+        if '/_delta_log/' in f'/{name}':
+            root = name.split('/_delta_log/')[0]
+            if root:  # empty means the listing prefix IS the table root
+                tables.setdefault(root, 'delta')
+            continue
+        match = _ICEBERG_NESTED_RE.match(name)
+        if match and match.group(1):
+            tables.setdefault(match.group(1), 'iceberg')
+    return tables
+
+
+def _has_known_extension(name: str) -> bool:
+    """True if the filename matches any recognized data-format extension."""
+    return any(re.search(regex, name, re.IGNORECASE)
+               for regex in FORMAT_EXTENSION_MAP.values())
+
+
 def find_first_non_empty_file(
     service: str,
     bucket: str,
@@ -239,7 +268,40 @@ def find_first_non_empty_file(
         info(Fore.YELLOW + f"No files matching format '{input_format}' found in "
              f"{service}://{bucket}/{prefix}. Using first available file." + Style.RESET_ALL)
 
-    # Use the first non-empty, non-metadata file
+    # No explicit format: the selection drives format INFERENCE, so only
+    # consider files whose extension we can actually infer from.
+    if not input_format:
+        nested_tables = _find_nested_tables(non_empty_files)
+        if nested_tables:
+            listing = '\n'.join(
+                f"  {fmt}: {root}/" for root, fmt in sorted(nested_tables.items())
+            )
+            first_root = sorted(nested_tables)[0]
+            raise ValueError(
+                "this directory contains lakehouse table(s), not a single dataset:\n"
+                f"{listing}\n"
+                f"Point at a table root, e.g.: cloudcat {first_root}/ "
+                "(or pass --input-format to force reading loose files)"
+            )
+
+        for file_name, file_size in non_empty_files:
+            if any(re.search(pattern, file_name) for pattern in SKIP_PATTERNS):
+                continue
+            if not _has_known_extension(file_name):
+                continue  # e.g. catalog.db, .lock — can't infer a format from it
+            if not quiet:
+                info(Fore.BLUE + f"Selected file: {file_name} ({file_size} bytes)" + Style.RESET_ALL)
+            return file_name, file_size
+
+        sample = ', '.join(name.rsplit('/', 1)[-1] for name, _ in non_empty_files[:5])
+        raise ValueError(
+            f"no files with a recognized data format in {service}://{bucket}/{prefix} "
+            f"(found: {sample}). Formats are inferred from extensions "
+            "(.csv/.json/.parquet/.avro/.orc/.txt, optionally compressed); "
+            "pass --input-format to force one."
+        )
+
+    # Explicit format requested but unmatched: first non-metadata file.
     for file_name, file_size in non_empty_files:
         if not any(re.search(pattern, file_name) for pattern in SKIP_PATTERNS):
             if not quiet:
@@ -850,6 +912,44 @@ def _print_completion(ctx, param, value):
     ctx.exit()
 
 
+_COMPLETION_SNIPPETS = {
+    'zsh': ('~/.zshrc', 'eval "$(cloudcat --completion zsh)"'),
+    'bash': ('~/.bashrc',
+             'COMP_WORDBREAKS=${COMP_WORDBREAKS//:/}  # let URLs like s3:// complete\n'
+             'eval "$(cloudcat --completion bash)"'),
+    'fish': ('~/.config/fish/config.fish', 'cloudcat --completion fish | source'),
+}
+
+_COMPLETION_MARKER = '# added by cloudcat --install-completion'
+
+
+def _install_completion(ctx, param, value):
+    """Eager callback: enable shell completion in the user's rc file.
+
+    Idempotent — a marker comment prevents duplicate blocks on re-runs.
+    """
+    if not value or ctx.resilient_parsing:
+        return
+    rc_path, snippet = _COMPLETION_SNIPPETS[value]
+    rc_file = os.path.expanduser(rc_path)
+
+    existing = ''
+    if os.path.exists(rc_file):
+        with open(rc_file, 'r', encoding='utf-8', errors='replace') as f:
+            existing = f.read()
+    if _COMPLETION_MARKER in existing:
+        click.echo(f"Completion is already set up in {rc_file}")
+        ctx.exit()
+
+    os.makedirs(os.path.dirname(rc_file), exist_ok=True)
+    block = f"\n{_COMPLETION_MARKER}\n{snippet}\n"
+    with open(rc_file, 'a', encoding='utf-8') as f:
+        f.write(block)
+    click.echo(f"Added cloudcat completion to {rc_file} — restart your shell "
+               f"(or run: source {rc_path}) and try: cloudcat s3://<TAB>")
+    ctx.exit()
+
+
 # Where each agent expects personal skills (name -> path builder).
 _SKILL_DESTINATIONS = {
     'claude': lambda: os.path.join(os.path.expanduser('~'), '.claude', 'skills', 'cloudcat', 'SKILL.md'),
@@ -962,6 +1062,9 @@ def _render_data(df, output_format: str) -> str:
 @click.option('--completion', type=click.Choice(['bash', 'zsh', 'fish']), is_eager=True,
               expose_value=False, callback=_print_completion,
               help='Print the shell completion script and exit (e.g. eval "$(cloudcat --completion zsh)")')
+@click.option('--install-completion', type=click.Choice(['bash', 'zsh', 'fish']), is_eager=True,
+              expose_value=False, callback=_install_completion,
+              help='Enable shell completion by adding one line to your shell rc file (idempotent)')
 @click.option('--install-skill', type=click.Choice(['claude', 'claude-project', 'codex', 'print']),
               is_eager=True, expose_value=False, callback=_install_skill,
               help='Install the bundled AI-agent skill: claude (~/.claude/skills), '

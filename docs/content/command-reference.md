@@ -66,6 +66,7 @@ cloudcat [OPTIONS]
 | Option | Description |
 |--------|-------------|
 | `--stats` | Show per-column statistics (nulls, distinct, min/max) over the retrieved rows |
+| `--install-completion [bash\|zsh\|fish]` | Enable shell completion with one command — appends one line to your rc file, idempotent |
 | `--completion [bash\|zsh\|fish]` | Print the shell completion script and exit. With it enabled, TAB also completes PATH: local files natively, `s3://<TAB>` lists buckets, `s3://bucket/dir/<TAB>` lists immediate children (honors `--profile`/`--project` typed earlier; 1–2s network timeout, silent on failure). bash users: add `COMP_WORDBREAKS=${COMP_WORDBREAKS//:/}` so URLs don't split on `:` |
 | `--no-color` | Disable colored output (also honors the `NO_COLOR` env var). Color is auto-disabled when output is piped. |
 | `-y, --yes` | Skip confirmation prompts (for scripting) |
