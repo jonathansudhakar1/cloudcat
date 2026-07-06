@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "CloudCat — preview and analyze data files in S3, GCS, Azure, or on disk from the terminal",
-    "version": "0.6.1"
+    "version": "0.6.2"
   },
   "plugins": [
     {
       "name": "cloudcat",
       "source": "./",
       "description": "Teaches agents to scan data files (CSV/JSON/Parquet/Avro/ORC, compressed) in cloud storage or on disk with the cloudcat CLI: schema discovery, filtered NDJSON sampling, metadata-fast counts, column profiling",
-      "version": "0.6.1",
+      "version": "0.6.2",
       "author": {
         "name": "Jonathan Sudhakar"
       },
