@@ -1,7 +1,7 @@
 {
   "name": "cloudcat",
   "description": "Scan data files (CSV/JSON/Parquet/Avro/ORC, compressed) in S3, GCS, Azure, or on disk with the cloudcat CLI: schema discovery, filtered NDJSON sampling, metadata-fast counts, column profiling",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "author": {
     "name": "Jonathan Sudhakar",
     "url": "https://github.com/jonathansudhakar1"
