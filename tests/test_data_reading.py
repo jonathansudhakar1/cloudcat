@@ -2,7 +2,8 @@ import pytest
 import pandas as pd
 import io
 from unittest.mock import patch, MagicMock
-from cloudcat.cli import read_csv_data, read_json_data, get_record_count
+from cloudcat.cli import get_record_count
+from cloudcat.readers import read_csv_data, read_json_data
 
 
 class TestDataReading:
@@ -73,26 +74,21 @@ class TestDataReading:
         assert list(df.columns) == ["name"]
         assert "invalid_col" not in df.columns
 
-    @patch('cloudcat.cli.HAS_PARQUET', True)
-    @patch('cloudcat.cli.pq')
-    @patch('cloudcat.cli.get_stream')
-    def test_get_record_count_parquet(self, mock_get_stream, mock_pq):
-        mock_file = MagicMock()
-        mock_file.metadata.num_rows = 1000
-        mock_pq.ParquetFile.return_value = mock_file
-        mock_get_stream.return_value.read.return_value = b"parquet_data"
+    def test_get_record_count_parquet(self, tmp_path):
+        # Real file through the native local-fs metadata path (no data read).
+        pa = pytest.importorskip("pyarrow")
+        import pyarrow.parquet as pq
+        path = tmp_path / "file.parquet"
+        pq.write_table(pa.Table.from_pandas(pd.DataFrame({"col1": range(1000)})), path)
 
-        count = get_record_count("gcs", "bucket", "file.parquet", "parquet")
+        count = get_record_count("local", "", str(path), "parquet")
 
         assert count == 1000
 
     @patch('cloudcat.cli.get_stream')
-    @patch('cloudcat.cli.pd.read_csv')
-    def test_get_record_count_csv(self, mock_read_csv, mock_get_stream):
-        # Mock chunked reading
-        chunk1 = pd.DataFrame({"col1": [1, 2, 3]})
-        chunk2 = pd.DataFrame({"col1": [4, 5]})
-        mock_read_csv.return_value = [chunk1, chunk2]
+    def test_get_record_count_csv(self, mock_get_stream):
+        # Real chunked CSV counting over a mocked stream.
+        mock_get_stream.return_value = io.BytesIO(b"col1\n1\n2\n3\n4\n5\n")
 
         count = get_record_count("gcs", "bucket", "file.csv", "csv")
 

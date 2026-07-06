@@ -1,8 +1,16 @@
 #!/usr/bin/env python
-"""CloudCat CLI - Preview and analyze data files in cloud storage."""
+"""CloudCat CLI - Preview and analyze data files in cloud storage.
+
+Import discipline: this module keeps its import-time footprint light —
+heavy dependencies (pandas, pyarrow, cloud SDKs, the readers) are imported
+inside the functions that use them. Shell tab-completion re-imports this
+module on every keypress, so module import must stay fast; the guard test
+in tests/test_import_lightness.py enforces it.
+"""
+
+from __future__ import annotations
 
 import click
-import pandas as pd
 import os
 import sys
 import io
@@ -16,7 +24,7 @@ from colorama import init, Fore, Style
 # Import version
 from . import __version__
 
-# Import from modular components
+# Light modular components (no heavy transitive imports)
 from .config import cloud_config, SKIP_PATTERNS, FORMAT_EXTENSION_MAP
 from .compression import (
     detect_compression,
@@ -25,47 +33,15 @@ from .compression import (
     get_streaming_decompressor,
     supports_streaming_decompression,
 )
-from .filtering import parse_where_clause, apply_where_filter, where_columns
-from .formatters import colorize_json, format_table_with_colored_header
 from .progress import start_progress, update_progress, stop_progress
-from .storage import (
+# storage.base dispatches to the cloud SDKs lazily per call, unlike the
+# storage package __init__, which imports all of them eagerly.
+from .storage.base import (
     parse_cloud_path,
     get_stream,
     list_directory,
     get_file_size,
 )
-from .storage.gcs import get_gcs_stream, list_gcs_directory
-from .storage.s3 import get_s3_stream, list_s3_directory
-from .storage.azure import get_azure_stream, list_azure_directory
-from .readers import (
-    read_csv_data,
-    read_csv_data_streaming,
-    read_json_data,
-    read_json_data_streaming,
-    read_parquet_data,
-    read_parquet_data_streaming,
-    read_avro_data,
-    read_avro_data_streaming,
-    read_orc_data,
-    read_orc_data_streaming,
-    read_text_data,
-    read_text_data_streaming,
-    HAS_PARQUET,
-    HAS_AVRO,
-    HAS_ORC,
-)
-from .streaming import (
-    StreamingStats,
-    format_bytes,
-    get_pyarrow_filesystem,
-    supports_pyarrow_fs,
-)
-
-# Import pyarrow for parquet metadata if available
-try:
-    import pyarrow.parquet as pq
-except ImportError:
-    pq = None
 
 
 def info(message: str) -> None:
@@ -92,15 +68,23 @@ def _configure_color(no_color: bool) -> None:
     init(strip=not use_color)
 
 
-# Map of input format -> non-streaming reader (used for multi-file reads).
-_READERS = {
-    'csv': lambda stream, n, columns, delimiter: read_csv_data(stream, n, columns, delimiter),
-    'json': lambda stream, n, columns, delimiter: read_json_data(stream, n, columns),
-    'parquet': lambda stream, n, columns, delimiter: read_parquet_data(stream, n, columns),
-    'avro': lambda stream, n, columns, delimiter: read_avro_data(stream, n, columns),
-    'orc': lambda stream, n, columns, delimiter: read_orc_data(stream, n, columns),
-    'text': lambda stream, n, columns, delimiter: read_text_data(stream, n, columns),
-}
+def _get_reader(input_format: str):
+    """Resolve the non-streaming reader for a format (lazy import).
+
+    Resolves through the readers package at call time so tests can patch
+    cloudcat.readers.read_<fmt>_data, and so importing this module never
+    pulls pandas/pyarrow.
+    """
+    from . import readers
+    table = {
+        'csv': lambda stream, n, columns, delimiter: readers.read_csv_data(stream, n, columns, delimiter),
+        'json': lambda stream, n, columns, delimiter: readers.read_json_data(stream, n, columns),
+        'parquet': lambda stream, n, columns, delimiter: readers.read_parquet_data(stream, n, columns),
+        'avro': lambda stream, n, columns, delimiter: readers.read_avro_data(stream, n, columns),
+        'orc': lambda stream, n, columns, delimiter: readers.read_orc_data(stream, n, columns),
+        'text': lambda stream, n, columns, delimiter: readers.read_text_data(stream, n, columns),
+    }
+    return table.get(input_format)
 
 
 def _list_non_empty_files(service: str, bucket: str, prefix: str) -> List[Tuple[str, int]]:
@@ -327,6 +311,8 @@ def read_data_from_multiple_files(
     Returns:
         Tuple of (DataFrame, schema, total_rows).
     """
+    import pandas as pd
+
     dfs = []
     schemas = []
     rows_read = 0
@@ -359,7 +345,7 @@ def read_data_from_multiple_files(
         else:
             rows_to_read_from_file = 0  # read all rows from this file
 
-        reader = _READERS.get(input_format)
+        reader = _get_reader(input_format)
         if reader is None:
             raise ValueError(f"Unsupported format: {input_format}")
         df, schema = reader(stream, rows_to_read_from_file, columns, delimiter)
@@ -477,6 +463,16 @@ def read_data_streaming(
     Returns:
         Tuple of (DataFrame, schema, StreamingStats).
     """
+    from .readers import (
+        read_csv_data_streaming,
+        read_json_data_streaming,
+        read_parquet_data_streaming,
+        read_avro_data_streaming,
+        read_orc_data_streaming,
+        read_text_data_streaming,
+    )
+    from .streaming import StreamingStats, get_pyarrow_filesystem, supports_pyarrow_fs
+
     # Get file size for stats
     try:
         file_size = get_file_size(service, bucket, object_path)
@@ -607,6 +603,14 @@ def get_record_count(
     Returns:
         Record count (int) or "Unknown" on failure.
     """
+    import pandas as pd
+    from .readers import HAS_PARQUET, HAS_AVRO, HAS_ORC
+    from .streaming import get_pyarrow_filesystem, supports_pyarrow_fs
+    try:
+        import pyarrow.parquet as pq
+    except ImportError:
+        pq = None
+
     # Lakehouse tables carry snapshot row counts in their metadata layer.
     if input_format in ('delta', 'iceberg'):
         from .tables import table_row_count
@@ -882,8 +886,9 @@ def _install_skill(ctx, param, value):
     ctx.exit()
 
 
-def _column_stats(df: pd.DataFrame) -> pd.DataFrame:
+def _column_stats(df):
     """Profile each column of a frame: type, nulls, distinct values, range."""
+    import pandas as pd
     rows = []
     for position, col in enumerate(df.columns):
         series = df.iloc[:, position]
@@ -908,8 +913,9 @@ def _column_stats(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _render_data(df: pd.DataFrame, output_format: str) -> str:
+def _render_data(df, output_format: str) -> str:
     """Render a DataFrame to the requested output format string."""
+    from .formatters import colorize_json, format_table_with_colored_header
     if output_format == 'table':
         return format_table_with_colored_header(df)
     elif output_format == 'jsonp':
@@ -1030,6 +1036,8 @@ def main(path_arg, path_opt, output_format, output_file, input_format, columns, 
     if not path:
         click.echo(Fore.RED + "Error: Missing PATH. Usage: cloudcat [OPTIONS] PATH" + Style.RESET_ALL, err=True)
         sys.exit(2)
+
+    from .filtering import parse_where_clause, apply_where_filter, where_columns
 
     # Enable color only for an interactive stdout; writing to a file is never
     # colored. This must run before any colored output is produced.
@@ -1179,6 +1187,7 @@ def main(path_arg, path_opt, output_format, output_file, input_format, columns, 
                     stop_progress()
 
                     # Calculate total size for stats
+                    from .streaming import StreamingStats
                     total_size = sum(f[1] for f in file_list)
                     streaming_stats = StreamingStats(file_size=total_size, bytes_read=total_size, format_type=input_format)
 

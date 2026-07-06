@@ -7,7 +7,7 @@ from cloudcat.cli import read_data_from_multiple_files
 
 class TestIntegration:
     @patch('cloudcat.cli.get_stream')
-    @patch('cloudcat.cli.read_csv_data')
+    @patch('cloudcat.readers.read_csv_data')
     def test_read_data_from_multiple_csv_files(self, mock_read_csv, mock_get_stream):
         # Mock file streams
         mock_get_stream.side_effect = [io.StringIO(), io.StringIO()]
@@ -30,7 +30,7 @@ class TestIntegration:
         assert total_rows == 2
 
     @patch('cloudcat.cli.get_stream')
-    @patch('cloudcat.cli.read_json_data')
+    @patch('cloudcat.readers.read_json_data')
     def test_read_data_from_multiple_json_files_with_limit(self, mock_read_json, mock_get_stream):
         # Mock file streams
         mock_get_stream.side_effect = [io.StringIO(), io.StringIO()]
@@ -53,7 +53,7 @@ class TestIntegration:
         assert result_df.iloc[2]["id"] == 3
 
     @patch('cloudcat.cli.get_stream')
-    @patch('cloudcat.cli.read_csv_data')
+    @patch('cloudcat.readers.read_csv_data')
     def test_read_data_with_schema_mismatch(self, mock_read_csv, mock_get_stream):
         # Mock file streams
         mock_get_stream.side_effect = [io.StringIO(), io.StringIO()]
@@ -80,7 +80,7 @@ class TestIntegration:
         assert set(full_schema.index) == expected_cols
 
     @patch('cloudcat.cli.get_stream')
-    @patch('cloudcat.cli.read_csv_data')
+    @patch('cloudcat.readers.read_csv_data')
     def test_read_data_with_file_errors(self, mock_read_csv, mock_get_stream):
         # Mock file streams
         mock_get_stream.side_effect = [io.StringIO(), io.StringIO()]
@@ -105,7 +105,7 @@ class TestIntegration:
         assert total_rows == 1
 
     @patch('cloudcat.cli.get_stream')
-    @patch('cloudcat.cli.read_json_data')
+    @patch('cloudcat.readers.read_json_data')
     def test_read_data_all_files_fail(self, mock_read_json, mock_get_stream):
         # Mock file streams
         mock_get_stream.side_effect = [io.StringIO(), io.StringIO()]
@@ -127,7 +127,7 @@ class TestIntegration:
         assert "File 1 corrupted" in str(excinfo.value)
 
     @patch('cloudcat.cli.get_stream')
-    @patch('cloudcat.cli.read_csv_data')
+    @patch('cloudcat.readers.read_csv_data')
     def test_read_data_with_column_filtering(self, mock_read_csv, mock_get_stream):
         # Mock file streams
         mock_get_stream.side_effect = [io.StringIO(), io.StringIO()]
