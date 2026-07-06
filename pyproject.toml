@@ -68,7 +68,13 @@ all = [
     "lz4>=3.0.0",
     "python-snappy>=0.6.0",
 ]
-test = ["pytest>=6.0.0", "pytest-mock>=3.6.0"]
+test = [
+    "pytest>=6.0.0",
+    "pytest-mock>=3.6.0",
+    # The table-format tests WRITE fixtures: Iceberg via a sqlite catalog
+    # (runtime reads are catalog-less and don't need this).
+    "pyiceberg[sql-sqlite]>=0.9.0",
+]
 dev = [
     "pytest>=6.0.0",
     "pytest-mock>=3.6.0",

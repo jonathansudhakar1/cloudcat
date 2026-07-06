@@ -16,6 +16,8 @@ from cloudcat.tables import detect_table_format, table_row_count
 
 deltalake = pytest.importorskip("deltalake", reason="delta extra not installed")
 pyiceberg = pytest.importorskip("pyiceberg", reason="iceberg extra not installed")
+# Writing Iceberg fixtures uses a sqlite catalog; runtime reads don't need it.
+pytest.importorskip("sqlalchemy", reason="pyiceberg[sql-sqlite] needed to write test fixtures")
 
 runner = CliRunner()
 
