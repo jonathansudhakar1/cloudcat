@@ -38,7 +38,9 @@ def delta_table(tmp_path):
     })
     write_deltalake(str(path), df)
     # Overwrite so stale files exist on disk but are dead in the log.
-    write_deltalake(str(path), df[df.id < 50], mode="overwrite")
+    # reset_index: a filtered frame's gappy index becomes an extra
+    # __index_level_0__ column on older pandas/deltalake stacks.
+    write_deltalake(str(path), df[df.id < 50].reset_index(drop=True), mode="overwrite")
     return path
 
 
