@@ -30,6 +30,7 @@ const sections = [
   'where-operators',
   'authentication',
   'directory-operations',
+  'tables',
   'output-formats',
   'use-cases',
   'agents',
@@ -64,7 +65,9 @@ function generateNav() {
     { id: 'features', label: 'Features' },
     { id: 'installation', label: 'Installation' },
     { id: 'quickstart', label: 'Quick Start' },
-    { id: 'command-reference', label: 'CLI Reference' }
+    { id: 'command-reference', label: 'CLI Reference' },
+    { id: 'tables', label: 'Tables' },
+    { id: 'agents', label: 'AI Agents' }
   ];
 
   return navItems.map(item =>
@@ -81,6 +84,32 @@ function getVersion() {
   } catch {
     return '0.0.0';
   }
+}
+
+// Human titles for the on-page TOC
+const SECTION_TITLES = {
+  'features': 'Features',
+  'installation': 'Installation',
+  'quickstart': 'Quick Start',
+  'command-reference': 'CLI Reference',
+  'where-operators': 'WHERE Operators',
+  'authentication': 'Authentication',
+  'directory-operations': 'Directory Operations',
+  'tables': 'Lakehouse Tables',
+  'output-formats': 'Output Formats',
+  'use-cases': 'Use Cases',
+  'agents': 'AI Agents',
+  'performance': 'Performance Tips',
+  'troubleshooting': 'Troubleshooting',
+  'contributing': 'Contributing',
+  'roadmap': 'Roadmap'
+};
+
+// Generate the table of contents from the section list
+function generateToc() {
+  return sections.map(id =>
+    `<li><a href="#${id}">${SECTION_TITLES[id] || id}</a></li>`
+  ).join('\n                    ');
 }
 
 // Generate sitemap
@@ -136,6 +165,7 @@ function build() {
   // Replace placeholders in template
   let html = template
     .replace('{{NAV}}', nav)
+    .replace('{{TOC}}', generateToc())
     .replace('{{SECTIONS}}', sectionsHtml)
     .replace(/\{\{VERSION\}\}/g, version)
     .replace(/\{\{BUILD_DATE\}\}/g, new Date().toISOString());

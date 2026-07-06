@@ -16,7 +16,7 @@
     <!-- Primary Meta Tags -->
     <title>CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI</title>
     <meta name="title" content="CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI">
-    <meta name="description" content="CloudCat is a powerful CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats with compression.">
+    <meta name="description" content="CloudCat is a powerful CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, Azure, and on local disk without downloading. Supports CSV, JSON, Parquet, Avro, ORC, Delta Lake, and Apache Iceberg with compression and SQL-like filtering.">
     <meta name="keywords" content="cloudcat, cloud storage cli, gcs preview, s3 preview, azure blob cli, parquet viewer, csv viewer, json viewer, avro reader, orc reader, cloud data tool, terminal tool, data engineering, data preview, cloud cli, aws s3 cat, gcs cat, azure cat">
     <meta name="author" content="Jonathan Sudhakar">
     <meta name="robots" content="index, follow">
@@ -67,7 +67,7 @@
         "price": "0",
         "priceCurrency": "USD"
       },
-      "description": "CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats.",
+      "description": "CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, Azure, and local disk without downloading. Supports CSV, JSON, Parquet, Avro, ORC, Delta Lake, and Apache Iceberg.",
       "softwareVersion": "0.5.1",
       "author": {
         "@type": "Person",
@@ -88,9 +88,14 @@
         "Parquet file preview",
         "Avro file preview",
         "ORC file preview",
+        "Delta Lake table preview",
+        "Apache Iceberg table preview",
+        "Local file preview",
         "Automatic compression handling",
-        "SQL-like filtering",
+        "SQL-like filtering with AND/OR and predicate pushdown",
         "Schema inspection",
+        "Column statistics",
+        "AI agent skill",
         "Multiple output formats"
       ]
     }
@@ -132,6 +137,14 @@
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Yes, CloudCat supports Amazon S3. Use the command: cloudcat -p s3://bucket/path/file.parquet to preview files directly from S3 buckets."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can CloudCat read Delta Lake and Apache Iceberg tables?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Point CloudCat at the table directory (cloudcat s3://lake/orders/) and the format is auto-detected. It reads the current snapshot only, gets row counts from table metadata, and pushes WHERE filters down so non-matching files are never downloaded. Install with: pip install 'cloudcat[tables]'"
           }
         },
         {
@@ -189,6 +202,8 @@
 <a href="#installation" class="nav-link">Installation</a>
 <a href="#quickstart" class="nav-link">Quick Start</a>
 <a href="#command-reference" class="nav-link">CLI Reference</a>
+<a href="#tables" class="nav-link">Tables</a>
+<a href="#agents" class="nav-link">AI Agents</a>
             </div>
             <div class="nav-actions">
                 <a href="https://github.com/jonathansudhakar1/cloudcat" class="btn btn-star" target="_blank" rel="noopener noreferrer">
@@ -270,6 +285,14 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0L2 6v12l10 6 10-6V6L12 0zm0 2.3l7.5 4.5v9L12 20.3l-7.5-4.5v-9L12 2.3z"/></svg>
                     Azure Blob Storage
                 </span>
+                <span class="provider-badge local">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    Local Files
+                </span>
+                <span class="provider-badge lakehouse">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                    Delta Lake &amp; Iceberg
+                </span>
             </div>
 
             <div class="hero-demo">
@@ -281,26 +304,25 @@
                         <span class="terminal-title">Terminal</span>
                     </div>
                     <div class="terminal-body">
-                        <pre><code><span class="prompt">$</span> cloudcat -p gcs://bucket/data.parquet -n 5
+                        <pre><code><span class="prompt">$</span> cloudcat s3://lake/orders/ -w "status=refunded AND amount>450" -n 3
 
-<span class="info">Reading from: gcs://bucket/data.parquet</span>
-<span class="info">Format: parquet | Records: 1,234,567</span>
+<span class="info">Detected delta table</span>
+<span class="info">Delta table: version 12 · 6 live data file(s)</span>
+<span class="info">Filtered: 3 matching rows (scanned 1,000 rows); skipped 5 file(s) via statistics</span>
 
 <span class="header">Schema:</span>
-  id: int64
-  name: string
-  email: string
-  created_at: timestamp
+  order_id: int64
+  region: str
+  status: str
+  amount: float64
 
-<span class="table">┌────────┬─────────────┬─────────────────────┬────────────────────┐
-│ id     │ name        │ email               │ created_at         │
-├────────┼─────────────┼─────────────────────┼────────────────────┤
-│ 1      │ Alice       │ alice@example.com   │ 2024-01-15 10:30   │
-│ 2      │ Bob         │ bob@example.com     │ 2024-01-15 11:45   │
-│ 3      │ Charlie     │ charlie@example.com │ 2024-01-16 09:00   │
-│ 4      │ Diana       │ diana@example.com   │ 2024-01-16 14:20   │
-│ 5      │ Eve         │ eve@example.com     │ 2024-01-17 08:15   │
-└────────┴─────────────┴─────────────────────┴────────────────────┘</span></code></pre>
+<span class="table">╭────────────┬──────────┬──────────┬──────────╮
+│   order_id │ region   │ status   │   amount │
+├────────────┼──────────┼──────────┼──────────┤
+│       5001 │ eu-west  │ refunded │   469.36 │
+│       5038 │ eu-west  │ refunded │   453.50 │
+│       5051 │ eu-west  │ refunded │   488.82 │
+╰────────────┴──────────┴──────────┴──────────╯</span></code></pre>
                     </div>
                 </div>
             </div>
@@ -321,8 +343,10 @@
                     <li><a href="#where-operators">WHERE Operators</a></li>
                     <li><a href="#authentication">Authentication</a></li>
                     <li><a href="#directory-operations">Directory Operations</a></li>
+                    <li><a href="#tables">Lakehouse Tables</a></li>
                     <li><a href="#output-formats">Output Formats</a></li>
                     <li><a href="#use-cases">Use Cases</a></li>
+                    <li><a href="#agents">AI Agents</a></li>
                     <li><a href="#performance">Performance Tips</a></li>
                     <li><a href="#troubleshooting">Troubleshooting</a></li>
                     <li><a href="#contributing">Contributing</a></li>
@@ -412,6 +436,18 @@
 <td>Via <code>--delimiter</code></td>
 <td>Tab-separated data</td>
 </tr>
+<tr>
+<td>Delta Lake</td>
+<td>Yes (<code>cloudcat[delta]</code>)</td>
+<td>Table directories</td>
+<td>Lakehouse tables, snapshot-aware</td>
+</tr>
+<tr>
+<td>Apache Iceberg</td>
+<td>Yes (<code>cloudcat[iceberg]</code>)</td>
+<td>Table directories</td>
+<td>Lakehouse tables, catalog-less</td>
+</tr>
 </tbody></table></div><h3>Streaming Efficiency</h3>
 <p>CloudCat optimizes data transfer by streaming only necessary data when possible. This table shows what truly streams for reduced egress costs:</p>
 <div class="table-wrapper"><table><thead><tr>
@@ -438,16 +474,16 @@
 <tr>
 <td>ORC</td>
 <td>None/Internal</td>
-<td>✗</td>
-<td>✗</td>
-<td>✗</td>
+<td>✓ (stripe-by-stripe)</td>
+<td>✓</td>
+<td>✓</td>
 </tr>
 <tr>
 <td>ORC</td>
 <td>External (.gz)</td>
 <td>✗</td>
-<td>✗</td>
-<td>✗</td>
+<td>✓</td>
+<td>✓</td>
 </tr>
 <tr>
 <td>CSV</td>
@@ -750,7 +786,7 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 <tr>
 <td><code>-i, --input-format TEXT</code></td>
 <td>auto-detect</td>
-<td>Input format: <code>csv</code>, <code>json</code>, <code>parquet</code>, <code>avro</code>, <code>orc</code>, <code>text</code></td>
+<td>Input format: <code>csv</code>, <code>json</code>, <code>parquet</code>, <code>avro</code>, <code>orc</code>, <code>text</code>, <code>delta</code>, <code>iceberg</code> (tables auto-detected for directories)</td>
 </tr>
 </tbody></table></div><h3>Data Selection Options</h3>
 <div class="table-wrapper"><table><thead><tr>
@@ -1230,6 +1266,95 @@ cloudcat -p gcs://bucket/data/</code><button class="copy-btn" aria-label="Copy c
 <li>Use <code>--max-size-mb</code> to control memory usage with <code>-m all</code></li>
 <li>Specify <code>-i</code> format when directory contains mixed file types</li>
 <li>CloudCat preserves column order across multiple files</li>
+</ul>
+
+</section>
+<section id="tables" class="doc-section">
+<h2>Lakehouse Tables</h2>
+<p>CloudCat reads <strong>Delta Lake</strong> and <strong>Apache Iceberg</strong> tables directly — point
+it at the table directory and it resolves the <em>current snapshot</em> from the
+table&#39;s metadata layer: only live data files are read, dead files from
+overwrites and compactions are ignored.</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Auto-detected from the table&#x27;s marker directory</span>
+cloudcat s3://lake/orders_delta/ -n 10
+cloudcat gs://lake/warehouse/shop/orders/ -n 10        <span class="hljs-comment"># Iceberg</span>
+
+<span class="hljs-comment"># Or explicit</span>
+cloudcat s3://lake/orders/ -i delta
+cloudcat s3://lake/orders/ -i iceberg</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Installation</h3>
+<p>The table formats are optional extras (kept out of <code>all</code> — <code>deltalake</code>
+alone is a ~100 MB wheel):</p>
+<div class="code-block"><pre><code class="hljs language-bash">pip install <span class="hljs-string">&#x27;cloudcat[delta]&#x27;</span>      <span class="hljs-comment"># Delta Lake</span>
+pip install <span class="hljs-string">&#x27;cloudcat[iceberg]&#x27;</span>    <span class="hljs-comment"># Apache Iceberg (~4 MB)</span>
+pip install <span class="hljs-string">&#x27;cloudcat[tables]&#x27;</span>     <span class="hljs-comment"># both</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>What works</h3>
+<p>Everything the plain-file paths support, snapshot-aware:</p>
+<div class="table-wrapper"><table><thead><tr>
+<th>Capability</th>
+<th>Delta</th>
+<th>Iceberg</th>
+</tr>
+</thead><tbody><tr>
+<td>Auto-detection (<code>_delta_log/</code>, <code>metadata/*.metadata.json</code>)</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Schema from table metadata (<code>-s schema_only</code>)</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>--count</code> from snapshot metadata — no data read</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>--where</code> with engine pushdown (files/row groups pruned)</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Compound <code>AND</code>/<code>OR</code> filters</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Column projection, <code>--stats</code>, <code>--offset</code>, all output formats</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Catalog required</td>
+<td>No</td>
+<td>No — newest <code>metadata.json</code> resolved by listing</td>
+</tr>
+</tbody></table></div><p>Supported WHERE operators (<code>=</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>, <code>AND</code>/<code>OR</code>)
+push down into the engines; <code>contains</code>-style operators fall back to reading
+the (column-projected) snapshot and filtering locally — same semantics
+either way, because CloudCat&#39;s own filter always makes the final decision.</p>
+<h3>Examples</h3>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-comment"># Structure and exact size of a table, metadata-only</span>
+cloudcat s3://lake/orders_delta/ -s schema_only --count -y
+
+<span class="hljs-comment"># Filtered sample: engine prunes non-matching files before download</span>
+cloudcat s3://lake/orders_delta/ -w <span class="hljs-string">&quot;status=refunded AND amount&gt;400&quot;</span> -n 10
+
+<span class="hljs-comment"># Column profile of the live snapshot</span>
+cloudcat gs://lake/warehouse/shop/orders/ --stats -n 0 -s dont_show -y
+
+<span class="hljs-comment"># Export matching rows to a local CSV</span>
+cloudcat s3://lake/orders_delta/ -w <span class="hljs-string">&quot;region=eu-west&quot;</span> -n 0 -o csv -O eu.csv</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Try it locally</h3>
+<p>The repo ships a sample-data generator — no cloud account needed:</p>
+<div class="code-block"><pre><code class="hljs language-bash">pip install <span class="hljs-string">&#x27;cloudcat[tables]&#x27;</span>
+python examples/make_sample_tables.py
+cloudcat examples/lakehouse/orders_delta/ --count -s schema_only -y</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Notes</h3>
+<ul>
+<li>Reads target the <strong>latest snapshot</strong>; time travel is on the roadmap</li>
+<li>Deletion vectors, column mapping, and Iceberg v2 delete files are handled
+by the underlying engines (<code>deltalake</code>, <code>pyiceberg</code>), not re-implemented</li>
+<li>Cloud credentials follow the same ambient auth as everything else
+(<code>--profile</code>, <code>--project</code>/<code>--credentials</code>, <code>--az-access-key</code>)</li>
+<li>Apache Hudi is not supported yet (no mature Python reader)</li>
 </ul>
 
 </section>
@@ -1905,10 +2030,11 @@ pytest tests/test_cli.py</code><button class="copy-btn" aria-label="Copy code"><
 <li><input checked="" disabled="" type="checkbox"> <strong>Local file support</strong> - <code>file://</code> URLs and plain paths</li>
 <li><input checked="" disabled="" type="checkbox"> <strong>Column statistics</strong> - <code>--stats</code> per-column profile</li>
 <li><input checked="" disabled="" type="checkbox"> <strong>Shell completion</strong> - bash/zsh/fish via <code>--completion</code></li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Delta Lake support</strong> - Current-snapshot reads with filter pushdown</li>
+<li><input checked="" disabled="" type="checkbox"> <strong>Iceberg support</strong> - Catalog-less current-snapshot reads</li>
 <li><input disabled="" type="checkbox"> <strong>Interactive mode</strong> - Pagination with keyboard navigation</li>
 <li><input disabled="" type="checkbox"> <strong>Sampling</strong> - Random row sampling</li>
-<li><input disabled="" type="checkbox"> <strong>Delta Lake support</strong> - Read Delta tables</li>
-<li><input disabled="" type="checkbox"> <strong>Iceberg support</strong> - Read Iceberg tables</li>
+<li><input disabled="" type="checkbox"> <strong>Table time travel</strong> - <code>--at-version</code> / <code>--at-snapshot</code></li>
 </ul>
 <h3>Under Consideration</h3>
 <ul>

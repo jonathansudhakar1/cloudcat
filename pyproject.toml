@@ -57,6 +57,10 @@ zstd = ["zstandard>=0.15.0"]
 lz4 = ["lz4>=3.0.0"]
 snappy = ["python-snappy>=0.6.0"]
 compression = ["zstandard>=0.15.0", "lz4>=3.0.0", "python-snappy>=0.6.0"]
+# Lakehouse table formats (kept out of `all`: deltalake is a ~100MB wheel)
+delta = ["deltalake>=1.0.0"]
+iceberg = ["pyiceberg[pyarrow]>=0.9.0"]
+tables = ["deltalake>=1.0.0", "pyiceberg[pyarrow]>=0.9.0"]
 all = [
     "pyarrow>=5.0.0",
     "fastavro>=1.4.0",
@@ -64,7 +68,13 @@ all = [
     "lz4>=3.0.0",
     "python-snappy>=0.6.0",
 ]
-test = ["pytest>=6.0.0", "pytest-mock>=3.6.0"]
+test = [
+    "pytest>=6.0.0",
+    "pytest-mock>=3.6.0",
+    # The table-format tests WRITE fixtures: Iceberg via a sqlite catalog
+    # (runtime reads are catalog-less and don't need this).
+    "pyiceberg[sql-sqlite]>=0.9.0",
+]
 dev = [
     "pytest>=6.0.0",
     "pytest-mock>=3.6.0",
@@ -83,7 +93,7 @@ Documentation = "https://cloudcatcli.com"
 Source = "https://github.com/jonathansudhakar1/cloudcat"
 
 [tool.setuptools]
-packages = ["cloudcat", "cloudcat.readers", "cloudcat.storage", "cloudcat.streaming"]
+packages = ["cloudcat", "cloudcat.readers", "cloudcat.storage", "cloudcat.streaming", "cloudcat.tables"]
 
 [tool.setuptools.package-data]
 cloudcat = ["data/*.md"]

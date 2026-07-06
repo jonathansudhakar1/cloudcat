@@ -16,7 +16,7 @@
     <!-- Primary Meta Tags -->
     <title>CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI</title>
     <meta name="title" content="CloudCat - Preview Cloud Storage Data from Your Terminal | GCS, S3, Azure CLI">
-    <meta name="description" content="CloudCat is a powerful CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats with compression.">
+    <meta name="description" content="CloudCat is a powerful CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, Azure, and on local disk without downloading. Supports CSV, JSON, Parquet, Avro, ORC, Delta Lake, and Apache Iceberg with compression and SQL-like filtering.">
     <meta name="keywords" content="cloudcat, cloud storage cli, gcs preview, s3 preview, azure blob cli, parquet viewer, csv viewer, json viewer, avro reader, orc reader, cloud data tool, terminal tool, data engineering, data preview, cloud cli, aws s3 cat, gcs cat, azure cat">
     <meta name="author" content="Jonathan Sudhakar">
     <meta name="robots" content="index, follow">
@@ -67,7 +67,7 @@
         "price": "0",
         "priceCurrency": "USD"
       },
-      "description": "CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, and Azure Blob Storage without downloading. Supports CSV, JSON, Parquet, Avro, ORC formats.",
+      "description": "CLI tool for previewing and analyzing data files in Google Cloud Storage, Amazon S3, Azure, and local disk without downloading. Supports CSV, JSON, Parquet, Avro, ORC, Delta Lake, and Apache Iceberg.",
       "softwareVersion": "{{VERSION}}",
       "author": {
         "@type": "Person",
@@ -88,9 +88,14 @@
         "Parquet file preview",
         "Avro file preview",
         "ORC file preview",
+        "Delta Lake table preview",
+        "Apache Iceberg table preview",
+        "Local file preview",
         "Automatic compression handling",
-        "SQL-like filtering",
+        "SQL-like filtering with AND/OR and predicate pushdown",
         "Schema inspection",
+        "Column statistics",
+        "AI agent skill",
         "Multiple output formats"
       ]
     }
@@ -132,6 +137,14 @@
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Yes, CloudCat supports Amazon S3. Use the command: cloudcat -p s3://bucket/path/file.parquet to preview files directly from S3 buckets."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can CloudCat read Delta Lake and Apache Iceberg tables?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Point CloudCat at the table directory (cloudcat s3://lake/orders/) and the format is auto-detected. It reads the current snapshot only, gets row counts from table metadata, and pushes WHERE filters down so non-matching files are never downloaded. Install with: pip install 'cloudcat[tables]'"
           }
         },
         {
@@ -267,6 +280,14 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0L2 6v12l10 6 10-6V6L12 0zm0 2.3l7.5 4.5v9L12 20.3l-7.5-4.5v-9L12 2.3z"/></svg>
                     Azure Blob Storage
                 </span>
+                <span class="provider-badge local">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    Local Files
+                </span>
+                <span class="provider-badge lakehouse">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                    Delta Lake &amp; Iceberg
+                </span>
             </div>
 
             <div class="hero-demo">
@@ -278,26 +299,25 @@
                         <span class="terminal-title">Terminal</span>
                     </div>
                     <div class="terminal-body">
-                        <pre><code><span class="prompt">$</span> cloudcat -p gcs://bucket/data.parquet -n 5
+                        <pre><code><span class="prompt">$</span> cloudcat s3://lake/orders/ -w "status=refunded AND amount>450" -n 3
 
-<span class="info">Reading from: gcs://bucket/data.parquet</span>
-<span class="info">Format: parquet | Records: 1,234,567</span>
+<span class="info">Detected delta table</span>
+<span class="info">Delta table: version 12 · 6 live data file(s)</span>
+<span class="info">Filtered: 3 matching rows (scanned 1,000 rows); skipped 5 file(s) via statistics</span>
 
 <span class="header">Schema:</span>
-  id: int64
-  name: string
-  email: string
-  created_at: timestamp
+  order_id: int64
+  region: str
+  status: str
+  amount: float64
 
-<span class="table">┌────────┬─────────────┬─────────────────────┬────────────────────┐
-│ id     │ name        │ email               │ created_at         │
-├────────┼─────────────┼─────────────────────┼────────────────────┤
-│ 1      │ Alice       │ alice@example.com   │ 2024-01-15 10:30   │
-│ 2      │ Bob         │ bob@example.com     │ 2024-01-15 11:45   │
-│ 3      │ Charlie     │ charlie@example.com │ 2024-01-16 09:00   │
-│ 4      │ Diana       │ diana@example.com   │ 2024-01-16 14:20   │
-│ 5      │ Eve         │ eve@example.com     │ 2024-01-17 08:15   │
-└────────┴─────────────┴─────────────────────┴────────────────────┘</span></code></pre>
+<span class="table">╭────────────┬──────────┬──────────┬──────────╮
+│   order_id │ region   │ status   │   amount │
+├────────────┼──────────┼──────────┼──────────┤
+│       5001 │ eu-west  │ refunded │   469.36 │
+│       5038 │ eu-west  │ refunded │   453.50 │
+│       5051 │ eu-west  │ refunded │   488.82 │
+╰────────────┴──────────┴──────────┴──────────╯</span></code></pre>
                     </div>
                 </div>
             </div>
@@ -311,19 +331,7 @@
             <aside class="toc">
                 <h3>On This Page</h3>
                 <ul>
-                    <li><a href="#features">Features</a></li>
-                    <li><a href="#installation">Installation</a></li>
-                    <li><a href="#quickstart">Quick Start</a></li>
-                    <li><a href="#command-reference">CLI Reference</a></li>
-                    <li><a href="#where-operators">WHERE Operators</a></li>
-                    <li><a href="#authentication">Authentication</a></li>
-                    <li><a href="#directory-operations">Directory Operations</a></li>
-                    <li><a href="#output-formats">Output Formats</a></li>
-                    <li><a href="#use-cases">Use Cases</a></li>
-                    <li><a href="#performance">Performance Tips</a></li>
-                    <li><a href="#troubleshooting">Troubleshooting</a></li>
-                    <li><a href="#contributing">Contributing</a></li>
-                    <li><a href="#roadmap">Roadmap</a></li>
+                    {{TOC}}
                 </ul>
             </aside>
 

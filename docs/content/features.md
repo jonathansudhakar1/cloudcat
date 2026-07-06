@@ -24,6 +24,8 @@ CloudCat automatically detects file formats from extensions and handles them app
 | ORC | Yes | Yes | Hive, Hadoop ecosystem |
 | Text | Yes | Yes | Log files, plain text |
 | TSV | Yes | Via `--delimiter` | Tab-separated data |
+| Delta Lake | Yes (`cloudcat[delta]`) | Table directories | Lakehouse tables, snapshot-aware |
+| Apache Iceberg | Yes (`cloudcat[iceberg]`) | Table directories | Lakehouse tables, catalog-less |
 
 ### Streaming Efficiency
 
@@ -33,8 +35,8 @@ CloudCat optimizes data transfer by streaming only necessary data when possible.
 |--------|-------------|---------|-------------------|----------------|
 | Parquet | None/Internal | ✓ | ✓ (range requests) | ✓ |
 | Parquet | External (.gz) | ✗ | ✗ | ✗ |
-| ORC | None/Internal | ✗ | ✗ | ✗ |
-| ORC | External (.gz) | ✗ | ✗ | ✗ |
+| ORC | None/Internal | ✓ (stripe-by-stripe) | ✓ | ✓ |
+| ORC | External (.gz) | ✗ | ✓ | ✓ |
 | CSV | None | ✓ | ✗ | ✓ |
 | CSV | gzip/zstd/lz4/bz2 | ✓ | ✗ | ✓ |
 | CSV | snappy | ✗ | ✗ | ✗ |
