@@ -89,6 +89,14 @@ def parse_cloud_path(path: str) -> Tuple[str, str, str]:
             "Use gs://, gcs://, s3://, abfss://, file://, or a local path."
         )
 
+    if not bucket:
+        noun = 'container' if service == 'azure' else 'bucket'
+        raise ValueError(
+            f"No {noun} in path '{scheme}://'. "
+            f"Use {scheme}://<{noun}>/<path> (TAB after {scheme}:// lists your {noun}s "
+            "once completion is enabled: cloudcat --install-completion zsh)."
+        )
+
     return service, bucket, object_path
 
 

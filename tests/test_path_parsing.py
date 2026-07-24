@@ -66,3 +66,12 @@ class TestPathParsing:
         assert service == "azure"
         assert bucket == "mycontainer"
         assert object_path == "path/to/file.csv"
+
+    def test_empty_bucket_raises_clear_error(self):
+        # Bare schemes previously leaked provider internals (boto3 regex
+        # dumps, "string index out of range" from GCS).
+        for scheme in ("s3", "gs", "gcs"):
+            with pytest.raises(ValueError, match="No bucket in path"):
+                parse_cloud_path(f"{scheme}://")
+        with pytest.raises(ValueError, match="No container in path"):
+            parse_cloud_path("abfss://")
