@@ -23,8 +23,9 @@ def _parse_local_path(raw: str) -> Tuple[str, str, str]:
 def parse_cloud_path(path: str) -> Tuple[str, str, str]:
     """Parse a storage path into service, bucket/container, and object components.
 
-    Supports gs://, gcs://, s3://, abfss:// cloud URLs plus local files —
-    either file:// URLs or plain filesystem paths (relative, absolute, or ~).
+    Supports gs://, gcs://, s3://, r2:// (Cloudflare R2, S3-compatible),
+    and abfss:// cloud URLs plus local files — either file:// URLs or plain
+    filesystem paths (relative, absolute, or ~).
 
     The URL is split manually rather than with urllib.parse: '#' and '?' are
     legal characters in object keys, and urlparse would silently truncate the
@@ -64,9 +65,13 @@ def parse_cloud_path(path: str) -> Tuple[str, str, str]:
     if scheme in ('gs', 'gcs'):
         service = 'gcs'
         bucket = netloc
-    elif scheme == 's3':
+    elif scheme in ('s3', 'r2'):
+        # Cloudflare R2 is S3-compatible: r2:// rides the whole S3 pipeline
+        # with a custom endpoint (--endpoint-url / config / AWS_ENDPOINT_URL_S3).
         service = 's3'
         bucket = netloc
+        from ..config import cloud_config
+        cloud_config.s3_scheme = scheme
     elif scheme == 'abfss':
         # Azure Data Lake Storage Gen2 (ADLS Gen2)
         # Format: abfss://container@storageaccount.dfs.core.windows.net/path

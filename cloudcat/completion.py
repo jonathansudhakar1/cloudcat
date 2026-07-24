@@ -67,33 +67,37 @@ LIMIT = 100
 CONNECT_TIMEOUT = 1.0
 READ_TIMEOUT = 2.0
 
-_SCHEMES = ('s3://', 'gs://', 'gcs://', 'abfss://', 'file://')
+_SCHEMES = ('s3://', 'r2://', 'gs://', 'gcs://', 'abfss://', 'file://')
 
 
 # --------------------------------------------------------------------------
 # per-provider listing (small, patchable seams; SDK imports stay inside)
 # --------------------------------------------------------------------------
 
-def _s3_client(profile: Optional[str]):
+def _s3_client(profile: Optional[str], endpoint: Optional[str] = None):
     import boto3
     from botocore.config import Config
     config = Config(connect_timeout=CONNECT_TIMEOUT, read_timeout=READ_TIMEOUT,
                     retries={'max_attempts': 0})
     session = boto3.Session(profile_name=profile) if profile else boto3.Session()
+    kwargs = {'config': config}
+    if endpoint:
+        kwargs['endpoint_url'] = endpoint
     # Without a configured region some boto3 versions raise NoRegionError at
     # client creation; bucket listing is region-agnostic, so default it.
-    region = session.region_name or 'us-east-1'
-    return session.client('s3', region_name=region, config=config)
+    kwargs['region_name'] = session.region_name or ('auto' if endpoint else 'us-east-1')
+    return session.client('s3', **kwargs)
 
 
-def _list_s3_buckets(profile: Optional[str]) -> List[str]:
-    response = _s3_client(profile).list_buckets()
+def _list_s3_buckets(profile: Optional[str], endpoint: Optional[str] = None) -> List[str]:
+    response = _s3_client(profile, endpoint).list_buckets()
     return [b['Name'] for b in response.get('Buckets', [])]
 
 
-def _shallow_list_s3(bucket: str, prefix: str, profile: Optional[str]) -> Tuple[List[str], List[str]]:
+def _shallow_list_s3(bucket: str, prefix: str, profile: Optional[str],
+                     endpoint: Optional[str] = None) -> Tuple[List[str], List[str]]:
     """Immediate children under a prefix: (dirs, files) as full keys."""
-    response = _s3_client(profile).list_objects_v2(
+    response = _s3_client(profile, endpoint).list_objects_v2(
         Bucket=bucket, Prefix=prefix, Delimiter='/', MaxKeys=LIMIT)
     dirs = [p['Prefix'] for p in response.get('CommonPrefixes', [])]
     files = [o['Key'] for o in response.get('Contents', []) if o['Key'] != prefix]
@@ -181,14 +185,21 @@ def _cloud_candidates(ctx, incomplete: str) -> List[str]:
     project = _param(ctx, 'project')
     credentials = _param(ctx, 'credentials')
     az_key = _param(ctx, 'az_access_key')
+    endpoint = _param(ctx, 'endpoint_url') or os.environ.get('AWS_ENDPOINT_URL_S3') \
+        or os.environ.get('AWS_ENDPOINT_URL')
 
     if scheme == 'file':
         return []  # handled by the file-completion fallback in complete_path
 
+    if scheme == 'r2' and not endpoint:
+        _debug("r2:// completion needs --endpoint-url (or AWS_ENDPOINT_URL_S3)")
+        return []
+    s3_endpoint = endpoint if scheme in ('s3', 'r2') else None
+
     if '/' not in rest:
         # Completing the bucket/container part.
-        if scheme == 's3':
-            names = _list_s3_buckets(profile)
+        if scheme in ('s3', 'r2'):
+            names = _list_s3_buckets(profile, s3_endpoint)
         elif scheme in ('gs', 'gcs'):
             names = _list_gcs_buckets(project, credentials)
         elif scheme == 'abfss':
@@ -208,8 +219,8 @@ def _cloud_candidates(ctx, incomplete: str) -> List[str]:
 
     # Completing a key/prefix inside a bucket.
     bucket, prefix = rest.split('/', 1)
-    if scheme == 's3':
-        dirs, files = _shallow_list_s3(bucket, prefix, profile)
+    if scheme in ('s3', 'r2'):
+        dirs, files = _shallow_list_s3(bucket, prefix, profile, s3_endpoint)
     elif scheme in ('gs', 'gcs'):
         dirs, files = _shallow_list_gcs(bucket, prefix, project, credentials)
     elif scheme == 'abfss' and '@' in bucket:

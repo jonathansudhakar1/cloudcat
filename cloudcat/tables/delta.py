@@ -32,6 +32,11 @@ def _require():
 def _storage_env():
     """Best-effort: surface cloudcat's credential flags to delta-rs via env."""
     from ..config import cloud_config
+    endpoint = cloud_config.resolve_s3_endpoint()
+    if endpoint:
+        os.environ.setdefault('AWS_ENDPOINT_URL', endpoint)
+        if endpoint.startswith('http://'):
+            os.environ.setdefault('AWS_ALLOW_HTTP', 'true')  # local test servers
     if cloud_config.aws_profile:
         os.environ.setdefault('AWS_PROFILE', cloud_config.aws_profile)
     if cloud_config.gcp_credentials:

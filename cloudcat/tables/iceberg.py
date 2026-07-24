@@ -28,7 +28,15 @@ _INSTALL_HINT = (
     "Install with: pip install 'cloudcat[iceberg]'"
 )
 
-_IO_PROPERTIES = {"py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO"}
+def _io_properties() -> dict:
+    """PyArrow IO for catalog-less reads, plus any custom S3 endpoint."""
+    from ..config import cloud_config
+    properties = {"py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO"}
+    endpoint = cloud_config.resolve_s3_endpoint()
+    if endpoint:
+        properties["s3.endpoint"] = endpoint
+        properties["s3.region"] = "auto"
+    return properties
 
 
 def _require():
@@ -42,7 +50,7 @@ def _open(service: str, bucket: str, prefix: str):
     metadata_uri = table_uri(service, bucket, metadata_key)
     if service == 'local':
         metadata_uri = 'file://' + metadata_uri
-    return StaticTable.from_metadata(metadata_uri, properties=_IO_PROPERTIES)
+    return StaticTable.from_metadata(metadata_uri, properties=_io_properties())
 
 
 def _to_iceberg_expression(where: Optional[str], arrow_schema):

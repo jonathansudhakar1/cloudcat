@@ -1,5 +1,6 @@
 """Configuration management for cloudcat."""
 
+import os
 from typing import Optional
 
 
@@ -16,6 +17,8 @@ class CloudConfig:
         self.gcp_credentials: Optional[str] = None  # Path to service account JSON
         self.azure_account: Optional[str] = None  # Extracted from abfss:// URL
         self.azure_access_key: Optional[str] = None  # Storage account access key
+        self.s3_endpoint: Optional[str] = None  # Custom S3 endpoint (--endpoint-url)
+        self.s3_scheme: str = 's3'  # URL scheme the user typed: 's3' or 'r2'
 
     def reset(self) -> None:
         """Reset all configuration to defaults. Useful for testing."""
@@ -24,6 +27,21 @@ class CloudConfig:
         self.gcp_credentials = None
         self.azure_account = None
         self.azure_access_key = None
+        self.s3_endpoint = None
+        self.s3_scheme = 's3'
+
+    def resolve_s3_endpoint(self) -> Optional[str]:
+        """The effective custom S3 endpoint, if any.
+
+        Precedence: --endpoint-url (or config-file key) > the standard AWS
+        endpoint env vars (which boto3 honors natively, but pyarrow and the
+        lakehouse engines do not — so cloudcat resolves them explicitly).
+        """
+        return (
+            self.s3_endpoint
+            or os.environ.get('AWS_ENDPOINT_URL_S3')
+            or os.environ.get('AWS_ENDPOINT_URL')
+        )
 
 
 # Global configuration instance

@@ -34,11 +34,26 @@ def get_s3_client():
         )
         sys.exit(1)
 
-    if cloud_config.aws_profile:
-        session = boto3.Session(profile_name=cloud_config.aws_profile)
-        return session.client('s3')
-    else:
-        return boto3.client('s3')
+    endpoint = cloud_config.resolve_s3_endpoint()
+    if cloud_config.s3_scheme == 'r2' and not endpoint:
+        raise ValueError(
+            "r2:// needs your account's endpoint. Pass "
+            "--endpoint-url https://<accountid>.r2.cloudflarestorage.com, "
+            "set endpoint-url in ~/.config/cloudcat/config.toml, or export "
+            "AWS_ENDPOINT_URL_S3. (R2 uses S3-style access keys: set "
+            "AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY or use --profile.)"
+        )
+
+    session = (boto3.Session(profile_name=cloud_config.aws_profile)
+               if cloud_config.aws_profile else boto3.Session())
+    kwargs = {}
+    if endpoint:
+        kwargs['endpoint_url'] = endpoint
+        # R2 expects region 'auto'; any custom endpoint needs *a* region for
+        # signing even when the provider ignores it.
+        if session.region_name is None:
+            kwargs['region_name'] = 'auto' if cloud_config.s3_scheme == 'r2' else 'us-east-1'
+    return session.client('s3', **kwargs)
 
 
 def get_s3_stream(bucket_name: str, object_name: str) -> BinaryIO:

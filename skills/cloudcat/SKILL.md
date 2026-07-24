@@ -9,6 +9,7 @@ description: Use when you need to quickly inspect, preview, sample, filter, coun
 
 `cloudcat PATH` previews data without downloading whole files. PATH is
 `s3://…`, `gs://…`, `abfss://container@account.dfs.core.windows.net/…`,
+`r2://…` (Cloudflare R2 — add `--endpoint-url https://<accountid>.r2.cloudflarestorage.com`),
 `file://…`, or a plain local path (no credentials needed for local).
 Directories (Spark/Hive output like `s3://bucket/output/`) work directly —
 part files are discovered and merged, `_SUCCESS`/metadata files skipped.
@@ -103,8 +104,9 @@ excludes nulls (SQL semantics).
 - `--stats` profiles the retrieved rows: pair with `-n 0` for the whole
   file, or with `-w`/`-n` to profile a slice.
 - Cloud auth is ambient: `--profile` (AWS), `--project`/`--credentials`
-  (GCP), `--az-access-key` (Azure). Missing-credential errors arrive on
-  stderr with exit 1.
+  (GCP), `--az-access-key` (Azure); R2/MinIO need `--endpoint-url` (or
+  AWS_ENDPOINT_URL_S3) with S3-style keys. Missing-credential errors arrive
+  on stderr with exit 1.
 
 ## Common mistakes
 

@@ -132,6 +132,9 @@ cloudcat -p s3://my-bucket/spark-output/ -i parquet
 # Read a Delta Lake or Iceberg table (auto-detected, current snapshot only)
 cloudcat s3://lake/orders_delta/ -w "status=refunded" -n 10
 
+# Cloudflare R2 (S3-compatible; uses R2's S3-style access keys)
+cloudcat r2://my-bucket/data.parquet --endpoint-url https://<accountid>.r2.cloudflarestorage.com
+
 # Read compressed files (auto-detected)
 cloudcat -p gcs://my-bucket/data.csv.gz
 
@@ -151,6 +154,8 @@ cloudcat -p gcs://bucket/data.csv --offset 100 -n 10
 | Google Cloud Storage | `gcs://` or `gs://` | ✅ Supported |
 | Amazon S3 | `s3://` | ✅ Supported |
 | Azure Data Lake Gen2 | `abfss://` | ✅ Supported |
+| Cloudflare R2 | `r2://` + `--endpoint-url` | ✅ Supported (S3-compatible) |
+| MinIO / Wasabi / any S3-compatible | `s3://` + `--endpoint-url` | ✅ Supported |
 | Local files | `file://` or a plain path | ✅ Supported (no credentials needed) |
 
 ### File Format Support
@@ -460,6 +465,11 @@ Options:
 
   --no-color                   Disable colored output (also honors NO_COLOR).
                                Color is auto-disabled when output is piped.
+
+  --endpoint-url TEXT          Custom S3-compatible endpoint. Required for
+                               r2:// (https://<accountid>.r2.cloudflarestorage.com);
+                               also enables MinIO/Wasabi via s3://. Env:
+                               AWS_ENDPOINT_URL_S3; config key: endpoint-url
 
   --profile TEXT               AWS profile name (for S3 access)
 

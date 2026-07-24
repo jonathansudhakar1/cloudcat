@@ -12,7 +12,7 @@ cloudcat [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `PATH` (positional) | `gs://`, `gcs://`, `s3://`, `abfss://`, `file://` URL, or a plain local path. `-p/--path` remains as a compatible alias |
+| `PATH` (positional) | `gs://`, `gcs://`, `s3://`, `r2://`, `abfss://`, `file://` URL, or a plain local path. `-p/--path` remains as a compatible alias |
 
 ### Output & Format Options
 
@@ -55,6 +55,7 @@ cloudcat [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
+| `--endpoint-url TEXT` | Custom S3-compatible endpoint — required for `r2://` (Cloudflare R2), also enables MinIO/Wasabi via `s3://`. Env: `AWS_ENDPOINT_URL_S3`; config-file key: `endpoint-url` |
 | `--profile TEXT` | AWS profile name (for S3 access) |
 | `--project TEXT` | GCP project ID (for GCS access) |
 | `--credentials TEXT` | Path to GCP service account JSON file |

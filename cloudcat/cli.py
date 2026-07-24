@@ -566,7 +566,8 @@ def read_data_streaming(
                 gcp_project=cloud_config.gcp_project,
                 gcp_credentials=cloud_config.gcp_credentials,
                 azure_account=cloud_config.azure_account,
-                azure_access_key=cloud_config.azure_access_key
+                azure_access_key=cloud_config.azure_access_key,
+                s3_endpoint=cloud_config.resolve_s3_endpoint()
             )
             # Local paths are already absolute; cloud paths are bucket/key.
             pyarrow_path = f"{bucket}/{object_path}" if bucket else object_path
@@ -693,7 +694,8 @@ def get_record_count(
                 gcp_project=cloud_config.gcp_project,
                 gcp_credentials=cloud_config.gcp_credentials,
                 azure_account=cloud_config.azure_account,
-                azure_access_key=cloud_config.azure_access_key
+                azure_access_key=cloud_config.azure_access_key,
+                s3_endpoint=cloud_config.resolve_s3_endpoint()
             )
             pyarrow_path = f"{bucket}/{object_path}" if bucket else object_path
             if input_format == 'parquet' and HAS_PARQUET:
@@ -1069,13 +1071,14 @@ def _render_data(df, output_format: str) -> str:
               is_eager=True, expose_value=False, callback=_install_skill,
               help='Install the bundled AI-agent skill: claude (~/.claude/skills), '
                    'claude-project (./.claude/skills), codex (~/.codex/skills), or print to stdout')
+@click.option('--endpoint-url', help='Custom S3-compatible endpoint (required for r2://; also enables MinIO/Wasabi via s3://)')
 @click.option('--profile', help='AWS profile name (for S3 access)')
 @click.option('--project', help='GCP project ID (for GCS access)')
 @click.option('--credentials', help='Path to GCP service account JSON file')
 @click.option('--az-access-key', help='Azure storage account access key')
 @click.option('--yes', '-y', is_flag=True, help='Skip confirmation prompts (for scripting)')
 def main(path_arg, path_opt, output_format, output_file, input_format, columns, num_rows, offset, where, schema, count,
-         multi_file_mode, max_size_mb, delimiter, show_stats, no_color, profile, project, credentials, az_access_key, yes):
+         multi_file_mode, max_size_mb, delimiter, show_stats, no_color, endpoint_url, profile, project, credentials, az_access_key, yes):
     """Display data from cloud storage (GCS, S3, Azure Data Lake) or local files.
 
     PATH is a gs://, gcs://, s3://, abfss://, or file:// URL — or a plain
@@ -1174,6 +1177,8 @@ def main(path_arg, path_opt, output_format, output_file, input_format, columns, 
         # from a previous in-process invocation (tests, library use) never
         # leak into this one.
         cloud_config.reset()
+        if endpoint_url:
+            cloud_config.s3_endpoint = endpoint_url
         if profile:
             cloud_config.aws_profile = profile
         if project:

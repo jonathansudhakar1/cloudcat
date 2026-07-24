@@ -71,6 +71,8 @@ all = [
 test = [
     "pytest>=6.0.0",
     "pytest-mock>=3.6.0",
+    # Live S3-compatible server for custom-endpoint (R2/MinIO) tests.
+    "moto[server]>=4.0.0",
     # The table-format tests WRITE fixtures: Iceberg via a sqlite catalog
     # (runtime reads are catalog-less and don't need this).
     "pyiceberg[sql-sqlite]>=0.9.0",

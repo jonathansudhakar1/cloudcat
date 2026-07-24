@@ -199,3 +199,33 @@ cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet
 # Option 2: Use Azure CLI
 az login
 ```
+
+### Cloudflare R2 (and other S3-compatible stores)
+
+R2 speaks the S3 API with S3-style access keys. Point cloudcat at your
+account endpoint and it rides the whole S3 pipeline — including native
+Parquet range reads and filter pushdown:
+
+```bash
+export AWS_ACCESS_KEY_ID=<r2-access-key-id>
+export AWS_SECRET_ACCESS_KEY=<r2-secret>
+
+cloudcat r2://my-bucket/data.parquet \
+  --endpoint-url https://<accountid>.r2.cloudflarestorage.com
+```
+
+The endpoint can also come from the `AWS_ENDPOINT_URL_S3` environment
+variable or a config-file profile:
+
+```toml
+# ~/.config/cloudcat/config.toml
+[profiles.r2]
+endpoint-url = "https://<accountid>.r2.cloudflarestorage.com"
+```
+
+```bash
+cloudcat r2://my-bucket/data.parquet --config-profile r2
+```
+
+MinIO, Wasabi, and other S3-compatible stores work the same way with the
+regular `s3://` scheme plus `--endpoint-url`.

@@ -33,7 +33,7 @@ except ImportError:  # pragma: no cover - exercised only on 3.9/3.10
 CONFIGURABLE_KEYS = {
     'output_format', 'output_file', 'input_format', 'columns', 'num_rows',
     'offset', 'where', 'schema', 'count', 'multi_file_mode', 'max_size_mb',
-    'delimiter', 'no_color', 'profile', 'project', 'credentials',
+    'delimiter', 'no_color', 'endpoint_url', 'profile', 'project', 'credentials',
     'az_access_key', 'yes',
 }
 

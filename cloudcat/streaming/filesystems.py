@@ -30,7 +30,8 @@ def get_pyarrow_filesystem(
     gcp_project: Optional[str] = None,
     gcp_credentials: Optional[str] = None,
     azure_account: Optional[str] = None,
-    azure_access_key: Optional[str] = None
+    azure_access_key: Optional[str] = None,
+    s3_endpoint: Optional[str] = None
 ) -> Tuple[Any, str]:
     """Create a PyArrow filesystem for native cloud access.
 
@@ -64,7 +65,7 @@ def get_pyarrow_filesystem(
         # projection) with no credentials at all.
         return pa_fs.LocalFileSystem(), ''
     elif service == 's3':
-        return _get_s3_filesystem(aws_profile)
+        return _get_s3_filesystem(aws_profile, s3_endpoint)
     elif service == 'gcs':
         return _get_gcs_filesystem(gcp_project, gcp_credentials)
     elif service == 'azure':
@@ -74,17 +75,33 @@ def get_pyarrow_filesystem(
 
 
 def _get_s3_filesystem(
-    aws_profile: Optional[str] = None
+    aws_profile: Optional[str] = None,
+    s3_endpoint: Optional[str] = None
 ) -> Tuple[Any, str]:
     """Create PyArrow S3FileSystem.
 
     Args:
         aws_profile: AWS profile name.
+        s3_endpoint: Custom endpoint (Cloudflare R2, MinIO, ...). Full URL;
+            an http:// endpoint disables TLS (local test servers).
 
     Returns:
         Tuple of (S3FileSystem, path_prefix).
     """
     kwargs = {}
+
+    if s3_endpoint:
+        # PyArrow wants host[:port] in endpoint_override and the protocol in
+        # scheme; also pin a region — custom endpoints can't be auto-resolved.
+        endpoint = s3_endpoint
+        if endpoint.startswith('http://'):
+            kwargs['scheme'] = 'http'
+            endpoint = endpoint[len('http://'):]
+        elif endpoint.startswith('https://'):
+            kwargs['scheme'] = 'https'
+            endpoint = endpoint[len('https://'):]
+        kwargs['endpoint_override'] = endpoint.rstrip('/')
+        kwargs['region'] = 'auto'
 
     if aws_profile:
         # PyArrow S3FileSystem doesn't directly support profiles,

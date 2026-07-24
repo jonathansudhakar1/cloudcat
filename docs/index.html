@@ -765,7 +765,7 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 </tr>
 </thead><tbody><tr>
 <td><code>PATH</code> (positional)</td>
-<td><code>gs://</code>, <code>gcs://</code>, <code>s3://</code>, <code>abfss://</code>, <code>file://</code> URL, or a plain local path. <code>-p/--path</code> remains as a compatible alias</td>
+<td><code>gs://</code>, <code>gcs://</code>, <code>s3://</code>, <code>r2://</code>, <code>abfss://</code>, <code>file://</code> URL, or a plain local path. <code>-p/--path</code> remains as a compatible alias</td>
 </tr>
 </tbody></table></div><h3>Output &amp; Format Options</h3>
 <div class="table-wrapper"><table><thead><tr>
@@ -863,6 +863,10 @@ cloudcat -p s3://bucket/events.json -o json | jq <span class="hljs-string">&#x27
 <th>Description</th>
 </tr>
 </thead><tbody><tr>
+<td><code>--endpoint-url TEXT</code></td>
+<td>Custom S3-compatible endpoint — required for <code>r2://</code> (Cloudflare R2), also enables MinIO/Wasabi via <code>s3://</code>. Env: <code>AWS_ENDPOINT_URL_S3</code>; config-file key: <code>endpoint-url</code></td>
+</tr>
+<tr>
 <td><code>--profile TEXT</code></td>
 <td>AWS profile name (for S3 access)</td>
 </tr>
@@ -1171,7 +1175,21 @@ cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet --az-acc
 cloudcat -p abfss://container@account.dfs.core.windows.net/data.parquet
 
 <span class="hljs-comment"># Option 2: Use Azure CLI</span>
-az login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
+az login</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><h3>Cloudflare R2 (and other S3-compatible stores)</h3>
+<p>R2 speaks the S3 API with S3-style access keys. Point cloudcat at your
+account endpoint and it rides the whole S3 pipeline — including native
+Parquet range reads and filter pushdown:</p>
+<div class="code-block"><pre><code class="hljs language-bash"><span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=&lt;r2-access-key-id&gt;
+<span class="hljs-built_in">export</span> AWS_SECRET_ACCESS_KEY=&lt;r2-secret&gt;
+
+cloudcat r2://my-bucket/data.parquet \
+  --endpoint-url https://&lt;accountid&gt;.r2.cloudflarestorage.com</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>The endpoint can also come from the <code>AWS_ENDPOINT_URL_S3</code> environment
+variable or a config-file profile:</p>
+<div class="code-block"><pre><code class="hljs language-toml"><span class="hljs-comment"># ~/.config/cloudcat/config.toml</span>
+<span class="hljs-section">[profiles.r2]</span>
+<span class="hljs-attr">endpoint-url</span> = <span class="hljs-string">&quot;https://&lt;accountid&gt;.r2.cloudflarestorage.com&quot;</span></code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><div class="code-block"><pre><code class="hljs language-bash">cloudcat r2://my-bucket/data.parquet --config-profile r2</code><button class="copy-btn" aria-label="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><p>MinIO, Wasabi, and other S3-compatible stores work the same way with the
+regular <code>s3://</code> scheme plus <code>--endpoint-url</code>.</p>
+
 </section>
 <section id="directory-operations" class="doc-section">
 <h2>Directory Operations</h2>
